@@ -1,6 +1,6 @@
 # Docker Compose configuration for Django, PostgreSQL, and Nginx
 services:
-  django:
+  web:
     build:
       context: ./django_app
     container_name: web
@@ -32,7 +32,7 @@ services:
     volumes:
       - ./nginx:/etc/nginx/conf.d
     depends_on:
-      - django
+      - web
 
 volumes:
   postgres_data: null
