@@ -57,9 +57,10 @@ resource "aws_ecr_lifecycle_policy" "default_lifecycle" {
         rulePriority = 2
         description  = "Keep only the latest 10 tagged images"
         selection = {
-          tagStatus   = "tagged"
-          countType   = "imageCountMoreThan"
-          countNumber = 10
+          tagStatus     = "tagged"
+          tagPrefixList = ["v", "latest", "prod", "dev", "staging"]
+          countType     = "imageCountMoreThan"
+          countNumber   = 10
         }
         action = {
           type = "expire"
