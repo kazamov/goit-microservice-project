@@ -1,13 +1,4 @@
-output "s3_bucket_name" {
-  description = "Name of the S3 bucket for state storage"
-  value       = module.s3_backend.bucket_name
-}
-
-output "dynamodb_table_name" {
-  description = "Name of the DynamoDB table for state locking"
-  value       = module.s3_backend.table_name
-}
-
+# VPC Outputs
 output "vpc_id" {
   description = "ID of the created VPC"
   value       = module.vpc.vpc_id
@@ -24,7 +15,7 @@ output "private_subnets" {
 }
 
 output "internet_gateway_id" {
-  description = "ID Internet Gateway"
+  description = "ID of the Internet Gateway"
   value       = module.vpc.internet_gateway_id
 }
 

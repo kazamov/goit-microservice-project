@@ -1,53 +1,79 @@
-# GoIT Microservice Infrastructure Project
+# GoIT Microservice Terraform Project
 
-A Terraform-based Infrastructure as Code (IaC) project for deploying microservice applications on AWS with modular architecture and remote state management.
+This project is split into two separate Terraform configurations for better state management:
 
-## 🏗️ Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         AWS Account                             │
-│                                                                 │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
-│  │   S3 Backend    │  │      VPC        │  │      ECR        │  │
-│  │                 │  │                 │  │                 │  │
-│  │ • State Storage │  │ • Public Subnet │  │ • Docker Images │  │
-│  │ • DynamoDB Lock │  │ • Private Subnet│  │ • Vulnerability │  │
-│  │ • Versioning    │  │ • Internet GW   │  │   Scanning      │  │
-│  └─────────────────┘  └─────────────────┘  └─────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-## 📁 Project Structure
+## Project Structure
 
 ```
-goit-microservice-project/
-├── README.md                         # Project overview (this file)
-├── main.tf                          # Main configuration
-├── backend.tf                       # Backend configuration
-├── outputs.tf                       # Root outputs
-├── examples/                        # Example configurations
-│   └── ecr-lifecycle-policy.json
-└── modules/                         # Terraform modules
-    ├── s3-backend/                  # Remote state backend
-    │   └── README.md               # 📖 S3 Backend Documentation
-    ├── vpc/                         # VPC networking
-    │   └── README.md               # 📖 VPC Documentation
-    └── ecr/                         # Container registry
-        └── README.md               # 📖 ECR Documentation
+├── infra-backend/     # Backend infrastructure (S3 + DynamoDB)
+├── main-infra/        # Main application infrastructure (VPC + ECR)
+└── modules/           # Reusable Terraform modules
+    ├── ecr/          # Elastic Container Registry module
+    ├── s3-backend/   # S3 backend storage module
+    └── vpc/          # Virtual Private Cloud module
 ```
 
-## 🚀 Quick Start
+## Architecture
 
-### Prerequisites
-- AWS CLI configured with appropriate credentials
-- Terraform installed (version 1.0+)
-- Required AWS permissions (S3, DynamoDB, VPC, ECR, IAM)
+```
+┌─────────────────┐    ┌─────────────────┐
+│  infra-backend  │    │   main-infra    │
+│                 │    │                 │
+│ • S3 Bucket     │◄───┤ • VPC           │
+│ • DynamoDB      │    │ • ECR           │
+│ • Local State   │    │ • Remote State  │
+└─────────────────┘    └─────────────────┘
+```
 
-### Setup Steps
+## Quick Start
 
-1. **Clone and configure**
-   ```bash
+### 1. Deploy Backend Infrastructure
+
+```bash
+cd infra-backend
+terraform init
+terraform apply
+```
+
+### 2. Deploy Main Infrastructure
+
+```bash
+cd ../main-infra
+terraform init
+terraform apply
+```
+
+### 3. Destroy (when needed)
+
+```bash
+# Destroy main infrastructure (keeps backend)
+cd main-infra
+terraform destroy
+
+# Optional: Destroy backend (removes state storage)
+cd ../infra-backend
+terraform destroy
+```
+
+## Key Benefits
+
+✅ **Clean Architecture**: Separate backend and application concerns  
+✅ **Safe Operations**: Destroy main infrastructure without affecting state  
+✅ **No Chicken-and-Egg**: Backend exists independently of application  
+✅ **Simple Recovery**: Easy to recreate from stored state  
+✅ **Best Practices**: Follows Terraform state management recommendations  
+
+## Documentation
+
+- [Backend Infrastructure](./infra-backend/README.md) - S3 + DynamoDB setup
+- [Main Infrastructure](./main-infra/README.md) - VPC + ECR setup
+- [ECR Module](./modules/ecr/README.md) - Container registry module
+- [S3 Backend Module](./modules/s3-backend/README.md) - State storage module
+- [VPC Module](./modules/vpc/README.md) - Networking module
+
+## Previous Architecture (Deprecated)
+
+The old single-project approach had issues with state management during destroy operations. This new split approach eliminates those problems entirely.
    git clone <repository-url>
    cd goit-microservice-project
    
