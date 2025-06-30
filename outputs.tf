@@ -1,25 +1,25 @@
 output "s3_bucket_name" {
-  description = "Назва S3-бакета для стейтів"
+  description = "Name of the S3 bucket for state storage"
   value       = module.s3_backend.bucket_name
 }
 
 output "dynamodb_table_name" {
-  description = "Назва таблиці DynamoDB для блокування стейтів"
+  description = "Name of the DynamoDB table for state locking"
   value       = module.s3_backend.table_name
 }
 
 output "vpc_id" {
-  description = "ID створеної VPC"
+  description = "ID of the created VPC"
   value       = module.vpc.vpc_id
 }
 
 output "public_subnets" {
-  description = "Список ID публічних підмереж"
+  description = "List of IDs of the public subnets"
   value       = module.vpc.public_subnets
 }
 
 output "private_subnets" {
-  description = "Список ID приватних підмереж"
+  description = "List of IDs of the private subnets"
   value       = module.vpc.private_subnets
 }
 

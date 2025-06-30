@@ -1,10 +1,10 @@
 variable "ecr_name" {
-  description = "Назва ECR репозиторію"
+  description = "Name of the ECR repository"
   type        = string
 }
 
 variable "scan_on_push" {
-  description = "Чи виконувати сканування образів при пуші"
+  description = "Whether to perform image scanning on push"
   type        = bool
   default     = false
 }

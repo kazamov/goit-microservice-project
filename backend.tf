@@ -1,10 +1,10 @@
 #terraform {
 #  backend "s3" {
-#    bucket         = "terraform-state-bucket-127214174194" # Назва S3-бакета
-#    key            = "lesson-5/terraform.tfstate"          # Шлях до файлу стейту
-#    region         = "eu-central-1"                        # Регіон AWS
-#    dynamodb_table = "terraform-locks"                     # Назва таблиці DynamoDB
+#    bucket         = "terraform-state-bucket-127214174194" # S3 bucket name
+#    key            = "lesson-5/terraform.tfstate"          # Path to state file
+#    region         = "eu-central-1"                        # AWS region
+#    dynamodb_table = "terraform-locks"                     # DynamoDB table name
 #    use_lockfile   = true
-#    encrypt        = true # Шифрування файлу стейту
+#    encrypt        = true # State file encryption
 #  }
 #}

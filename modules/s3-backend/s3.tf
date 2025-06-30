@@ -1,4 +1,4 @@
-# Створюємо S3-бакет
+# Create S3 bucket
 resource "aws_s3_bucket" "terraform_state" {
   bucket = var.bucket_name
 
@@ -8,7 +8,7 @@ resource "aws_s3_bucket" "terraform_state" {
   }
 }
 
-# Налаштовуємо версіонування для S3-бакета
+# Configure versioning for S3 bucket
 resource "aws_s3_bucket_versioning" "terraform_state_versioning" {
   bucket = aws_s3_bucket.terraform_state.id
 
@@ -17,7 +17,7 @@ resource "aws_s3_bucket_versioning" "terraform_state_versioning" {
   }
 }
 
-# Встановлюємо контроль власності для S3-бакета
+# Set ownership controls for S3 bucket
 resource "aws_s3_bucket_ownership_controls" "terraform_state_ownership" {
   bucket = aws_s3_bucket.terraform_state.id
   rule {

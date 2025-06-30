@@ -1,25 +1,25 @@
 variable "vpc_cidr_block" {
-  description = "CIDR блок для VPC"
+  description = "CIDR block for the VPC"
   type        = string
 }
 
 variable "public_subnets" {
-  description = "Список CIDR блоків для публічних підмереж"
+  description = "List of CIDR blocks for public subnets"
   type        = list(string)
 }
 
 variable "private_subnets" {
-  description = "Список CIDR блоків для приватних підмереж"
+  description = "List of CIDR blocks for private subnets"
   type        = list(string)
 }
 
 variable "availability_zones" {
-  description = "Список зон доступності для підмереж"
+  description = "List of availability zones for subnets"
   type        = list(string)
 }
 
 variable "vpc_name" {
-  description = "Ім'я VPC"
+  description = "Name of the VPC"
   type        = string
 }
 
