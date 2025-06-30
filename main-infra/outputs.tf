@@ -19,6 +19,26 @@ output "internet_gateway_id" {
   value       = module.vpc.internet_gateway_id
 }
 
+output "nat_gateway_ids" {
+  description = "List of IDs of the NAT Gateways"
+  value       = module.vpc.nat_gateway_ids
+}
+
+output "nat_gateway_ips" {
+  description = "List of public Elastic IPs of the NAT Gateways"
+  value       = module.vpc.nat_gateway_ips
+}
+
+output "private_route_table_ids" {
+  description = "List of IDs of the private route tables"
+  value       = module.vpc.private_route_table_ids
+}
+
+output "public_route_table_id" {
+  description = "ID of the public route table"
+  value       = module.vpc.public_route_table_id
+}
+
 # ECR Outputs
 output "ecr_repository_url" {
   description = "URL of the ECR repository"

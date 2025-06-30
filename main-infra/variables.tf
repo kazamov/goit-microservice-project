@@ -35,6 +35,18 @@ variable "vpc_name" {
   default     = "main-vpc"
 }
 
+variable "enable_nat_gateway" {
+  description = "Should be true if you want to provision NAT Gateways for each of your private networks"
+  type        = bool
+  default     = false
+}
+
+variable "single_nat_gateway" {
+  description = "Should be true if you want to provision a single shared NAT Gateway across all of your private networks"
+  type        = bool
+  default     = false
+}
+
 # ECR Variables
 variable "ecr_name" {
   description = "Name of the ECR repository"

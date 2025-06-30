@@ -45,3 +45,28 @@ resource "aws_internet_gateway" "igw" {
   }
 }
 
+# Create Elastic IP for NAT Gateway(s)
+resource "aws_eip" "nat" {
+  count  = var.enable_nat_gateway ? (var.single_nat_gateway ? 1 : length(var.private_subnets)) : 0
+  domain = "vpc"
+
+  tags = {
+    Name = var.single_nat_gateway ? "${var.vpc_name}-nat-eip" : "${var.vpc_name}-nat-eip-${count.index + 1}"
+  }
+
+  depends_on = [aws_internet_gateway.igw]
+}
+
+# Create NAT Gateway(s)
+resource "aws_nat_gateway" "nat" {
+  count         = var.enable_nat_gateway ? (var.single_nat_gateway ? 1 : length(var.private_subnets)) : 0
+  allocation_id = aws_eip.nat[count.index].id
+  subnet_id     = aws_subnet.public[count.index].id
+
+  tags = {
+    Name = var.single_nat_gateway ? "${var.vpc_name}-nat-gateway" : "${var.vpc_name}-nat-gateway-${count.index + 1}"
+  }
+
+  depends_on = [aws_internet_gateway.igw]
+}
+

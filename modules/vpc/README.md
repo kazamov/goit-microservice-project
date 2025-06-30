@@ -1,6 +1,6 @@
 # AWS VPC Module
 
-This module creates a complete AWS VPC (Virtual Private Cloud) infrastructure with public and private subnets, internet gateway, and routing tables. It provides a secure and scalable network foundation for your AWS resources.
+This module creates a complete AWS VPC (Virtual Private Cloud) infrastructure with public and private subnets, internet gateway, optional NAT gateways, and routing tables. It provides a secure and scalable network foundation for your AWS resources.
 
 ## Features
 
@@ -8,6 +8,8 @@ This module creates a complete AWS VPC (Virtual Private Cloud) infrastructure wi
 - ✅ Multiple public subnets across availability zones
 - ✅ Multiple private subnets across availability zones
 - ✅ Internet Gateway for public internet access
+- ✅ **Optional NAT Gateways for private subnet internet access**
+- ✅ **Flexible NAT Gateway configuration (single or per-AZ)**
 - ✅ Route tables and associations
 - ✅ DNS support and hostnames enabled
 - ✅ Auto-assign public IPs in public subnets
@@ -15,6 +17,7 @@ This module creates a complete AWS VPC (Virtual Private Cloud) infrastructure wi
 
 ## Architecture
 
+### Without NAT Gateway (Default)
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                        VPC (10.0.0.0/16)                   │
@@ -30,12 +33,6 @@ This module creates a complete AWS VPC (Virtual Private Cloud) infrastructure wi
 │  │   10.0.2.0/24    │              │   10.0.5.0/24    │     │
 │  │      AZ-2        │              │      AZ-2        │     │
 │  └──────────────────┘              └──────────────────┘     │
-│           │                                 │               │
-│  ┌──────────────────┐              ┌──────────────────┐     │
-│  │   Public Subnet  │              │  Private Subnet  │     │
-│  │   10.0.3.0/24    │              │   10.0.6.0/24    │     │
-│  │      AZ-3        │              │      AZ-3        │     │
-│  └──────────────────┘              └──────────────────┘     │
 │           │                                                 │
 │    ┌─────────────┐                                          │
 │    │ Internet    │                                          │
@@ -48,9 +45,43 @@ This module creates a complete AWS VPC (Virtual Private Cloud) infrastructure wi
               └─────────────┘
 ```
 
+### With NAT Gateway (Optional)
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        VPC (10.0.0.0/16)                   │
+│                                                             │
+│  ┌──────────────────┐              ┌──────────────────┐     │
+│  │   Public Subnet  │              │  Private Subnet  │     │
+│  │   10.0.1.0/24    │              │   10.0.4.0/24    │     │
+│  │      AZ-1        │              │      AZ-1        │     │
+│  │  ┌─────────────┐ │              └──────────────────┘     │
+│  │  │ NAT Gateway │ │                        │               │
+│  │  └─────────────┘ │                        │               │
+│  └──────────────────┘                        │               │
+│           │                                  │               │
+│  ┌──────────────────┐              ┌──────────────────┐     │
+│  │   Public Subnet  │              │  Private Subnet  │     │
+│  │   10.0.2.0/24    │              │   10.0.5.0/24    │     │
+│  │      AZ-2        │              │      AZ-2        │     │
+│  │  ┌─────────────┐ │              └──────────────────┘     │
+│  │  │ NAT Gateway │ │                        │               │
+│  │  └─────────────┘ │                        │               │
+│  └──────────────────┘                        │               │
+│           │                                  │               │
+│    ┌─────────────┐                          │               │
+│    │ Internet    │                          │               │
+│    │ Gateway     │                          │               │
+│    └─────────────┘                          │               │
+└─────────────────────────────────────────────────────────────┘
+                    │
+              ┌─────────────┐
+              │  Internet   │
+              └─────────────┘
+```
+
 ## Usage
 
-### Basic Usage
+### Basic Usage (No NAT Gateway)
 
 ```hcl
 module "vpc" {
@@ -63,7 +94,24 @@ module "vpc" {
 }
 ```
 
-### Production Usage
+### With NAT Gateway (Single for all AZs)
+
+```hcl
+module "vpc" {
+  source             = "./modules/vpc"
+  vpc_cidr_block     = "10.0.0.0/16"
+  public_subnets     = ["10.0.1.0/24", "10.0.2.0/24"]
+  private_subnets    = ["10.0.4.0/24", "10.0.5.0/24"]
+  availability_zones = ["eu-central-1a", "eu-central-1b"]
+  vpc_name           = "my-vpc"
+  
+  # NAT Gateway configuration
+  enable_nat_gateway = true
+  single_nat_gateway = true  # Use single NAT Gateway for cost optimization
+}
+```
+
+### Production Usage (NAT Gateway per AZ)
 
 ```hcl
 module "vpc" {
@@ -85,6 +133,10 @@ module "vpc" {
     "eu-central-1c"
   ]
   vpc_name           = "production-vpc"
+  
+  # High availability NAT Gateway configuration
+  enable_nat_gateway = true
+  single_nat_gateway = false  # One NAT Gateway per AZ for high availability
 }
 ```
 
@@ -97,6 +149,8 @@ module "vpc" {
 | private_subnets | List of CIDR blocks for private subnets | `list(string)` | n/a | yes |
 | availability_zones | List of availability zones for subnets | `list(string)` | n/a | yes |
 | vpc_name | Name prefix for VPC resources | `string` | n/a | yes |
+| **enable_nat_gateway** | **Enable NAT Gateways for private subnets** | `bool` | `false` | no |
+| **single_nat_gateway** | **Use single NAT Gateway for all private subnets** | `bool` | `false` | no |
 
 ## Outputs
 
@@ -106,6 +160,10 @@ module "vpc" {
 | public_subnets | List of IDs of the public subnets |
 | private_subnets | List of IDs of the private subnets |
 | internet_gateway_id | ID of the Internet Gateway |
+| **nat_gateway_ids** | **List of IDs of the NAT Gateways** |
+| **nat_gateway_ips** | **List of public Elastic IPs of the NAT Gateways** |
+| **private_route_table_ids** | **List of IDs of the private route tables** |
+| **public_route_table_id** | **ID of the public route table** |
 
 ## Resources Created
 
@@ -117,10 +175,16 @@ module "vpc" {
 - **aws_subnet (public)**: Public subnets with auto-assign public IP
 - **aws_subnet (private)**: Private subnets for internal resources
 
+### NAT Gateway Resources (Optional)
+- **aws_eip**: Elastic IP addresses for NAT Gateways
+- **aws_nat_gateway**: NAT Gateways for private subnet internet access
+
 ### Routing
-- **aws_route_table**: Route table for public subnets
-- **aws_route**: Route to Internet Gateway (0.0.0.0/0)
-- **aws_route_table_association**: Associates public subnets with route table
+- **aws_route_table (public)**: Route table for public subnets
+- **aws_route_table (private)**: Route tables for private subnets
+- **aws_route (public)**: Route to Internet Gateway (0.0.0.0/0)
+- **aws_route (private)**: Routes to NAT Gateway (0.0.0.0/0) when enabled
+- **aws_route_table_association**: Associates subnets with route tables
 
 ## Network Design Principles
 
@@ -130,14 +194,50 @@ module "vpc" {
 - **Use Cases**: Load balancers, bastion hosts, NAT gateways
 
 ### Private Subnets
-- **Purpose**: Host internal resources without direct internet access
-- **Features**: No public IPs, no direct internet routing
+- **Purpose**: Host internal resources with optional outbound internet access
+- **Features**: No public IPs, route to NAT Gateway when enabled
 - **Use Cases**: Application servers, databases, internal services
+
+### NAT Gateway Options
+- **Single NAT Gateway**: Cost-effective, routes all private traffic through one gateway
+- **Multi-AZ NAT**: High availability, one NAT Gateway per availability zone
+- **No NAT Gateway**: Maximum security, no outbound internet access from private subnets
 
 ### High Availability
 - **Multi-AZ**: Resources distributed across multiple availability zones
 - **Fault Tolerance**: Failure in one AZ doesn't affect others
 - **Scalability**: Easy to add more subnets and AZs
+
+## NAT Gateway Considerations
+
+### Cost Optimization
+- **Single NAT Gateway**: ~$45/month + data processing costs
+- **Multi-AZ NAT**: ~$45/month per AZ + data processing costs
+- **Data Processing**: $0.045 per GB processed
+
+### Performance & Availability
+- **Single NAT Gateway**: 
+  - ✅ Lower cost
+  - ❌ Single point of failure
+  - ❌ Cross-AZ data transfer charges
+- **Multi-AZ NAT Gateway**:
+  - ✅ High availability
+  - ✅ No cross-AZ data transfer charges
+  - ❌ Higher cost
+
+### Security Considerations
+- **With NAT Gateway**: Private instances can initiate outbound connections
+- **Without NAT Gateway**: Maximum security, no outbound internet access
+- **Recommended**: Use NAT Gateway for applications requiring updates/patches
+
+### Decision Matrix
+
+| Use Case | Recommendation |
+|----------|----------------|
+| Development/Testing | Single NAT Gateway or None |
+| Production (HA Required) | Multi-AZ NAT Gateway |
+| Production (Cost Sensitive) | Single NAT Gateway |
+| Maximum Security | No NAT Gateway |
 
 ## Common Use Cases
 

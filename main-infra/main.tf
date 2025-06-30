@@ -31,6 +31,8 @@ module "vpc" {
   private_subnets    = var.private_subnets
   availability_zones = var.availability_zones
   vpc_name           = var.vpc_name
+  enable_nat_gateway = true
+  single_nat_gateway = false
 }
 
 module "ecr" {
