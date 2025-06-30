@@ -1,0 +1,43 @@
+{
+  "rules": [
+    {
+      "rulePriority": 1,
+      "description": "Keep only the latest 5 production images",
+      "selection": {
+        "tagStatus": "tagged",
+        "tagPrefixList": ["prod", "production"],
+        "countType": "imageCountMoreThan",
+        "countNumber": 5
+      },
+      "action": {
+        "type": "expire"
+      }
+    },
+    {
+      "rulePriority": 2,
+      "description": "Keep only the latest 3 development images",
+      "selection": {
+        "tagStatus": "tagged",
+        "tagPrefixList": ["dev", "development"],
+        "countType": "imageCountMoreThan",
+        "countNumber": 3
+      },
+      "action": {
+        "type": "expire"
+      }
+    },
+    {
+      "rulePriority": 3,
+      "description": "Delete untagged images older than 1 day",
+      "selection": {
+        "tagStatus": "untagged",
+        "countType": "sinceImagePushed",
+        "countUnit": "days",
+        "countNumber": 1
+      },
+      "action": {
+        "type": "expire"
+      }
+    }
+  ]
+}
