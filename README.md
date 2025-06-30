@@ -1,16 +1,18 @@
 # GoIT Microservice Terraform Project
 
-This project is split into two separate Terraform configurations for better state management:
+This project provides a complete AWS infrastructure setup for microservices using Terraform, with proper state management and modular architecture.
 
 ## Project Structure
 
 ```
-├── infra-backend/     # Backend infrastructure (S3 + DynamoDB)
-├── main-infra/        # Main application infrastructure (VPC + ECR)
-└── modules/           # Reusable Terraform modules
-    ├── ecr/          # Elastic Container Registry module
-    ├── s3-backend/   # S3 backend storage module
-    └── vpc/          # Virtual Private Cloud module
+├── deploy-backend.sh     # Automated backend deployment script
+├── validate-backend.sh   # Configuration validation script
+├── infra-backend/        # Backend infrastructure (S3 + DynamoDB)
+├── main-infra/          # Main application infrastructure (VPC + ECR)
+└── modules/             # Reusable Terraform modules
+    ├── ecr/            # Elastic Container Registry module
+    ├── s3-backend/     # S3 backend storage module
+    └── vpc/            # Virtual Private Cloud module
 ```
 
 ## Architecture
@@ -27,40 +29,42 @@ This project is split into two separate Terraform configurations for better stat
 
 ## Quick Start
 
-### 1. Deploy Backend Infrastructure
+### 1. Validate Configuration (Recommended)
 
 ```bash
-cd infra-backend
-terraform init
-terraform apply
+./validate-backend.sh
 ```
 
-### 2. Deploy Main Infrastructure
+### 2. Deploy Backend Infrastructure
 
 ```bash
-cd ../main-infra
-terraform init
-terraform apply
+./deploy-backend.sh
 ```
 
-### 3. Destroy (when needed)
+### 3. Deploy Main Infrastructure
 
 ```bash
-# Destroy main infrastructure (keeps backend)
+./deploy-main.sh
+```
+
+### 4. Cleanup (when needed)
+
+```bash
+# Destroy main infrastructure first
 cd main-infra
 terraform destroy
 
-# Optional: Destroy backend (removes state storage)
+# Then destroy backend if needed
 cd ../infra-backend
 terraform destroy
 ```
 
 ## Key Benefits
 
+✅ **Automated Deployment**: Scripts handle validation and deployment  
 ✅ **Clean Architecture**: Separate backend and application concerns  
 ✅ **Safe Operations**: Destroy main infrastructure without affecting state  
-✅ **No Chicken-and-Egg**: Backend exists independently of application  
-✅ **Simple Recovery**: Easy to recreate from stored state  
+✅ **Secure by Default**: Encrypted S3, DynamoDB locking, private subnets  
 ✅ **Best Practices**: Follows Terraform state management recommendations  
 
 ## Documentation
@@ -71,33 +75,9 @@ terraform destroy
 - [S3 Backend Module](./modules/s3-backend/README.md) - State storage module
 - [VPC Module](./modules/vpc/README.md) - Networking module
 
-## Previous Architecture (Deprecated)
+## Module Documentation
 
-The old single-project approach had issues with state management during destroy operations. This new split approach eliminates those problems entirely.
-   git clone <repository-url>
-   cd goit-microservice-project
-   
-   # Update bucket name in main.tf to be globally unique
-   # bucket_name = "terraform-state-bucket-YOUR-UNIQUE-ID"
-   ```
-
-2. **Initial deployment (without remote state)**
-   ```bash
-   # Comment out backend configuration in backend.tf
-   terraform init
-   terraform plan
-   terraform apply
-   ```
-
-3. **Migrate to remote state**
-   ```bash
-   # Uncomment backend configuration in backend.tf
-   terraform init -migrate-state
-   ```
-
-## � Module Documentation
-
-Each module includes comprehensive documentation with usage examples, best practices, and troubleshooting:
+Each module includes comprehensive documentation with usage examples and best practices:
 
 | Module | Purpose | Documentation |
 |--------|---------|---------------|
@@ -105,61 +85,59 @@ Each module includes comprehensive documentation with usage examples, best pract
 | **[VPC](./modules/vpc/README.md)** | Network infrastructure and subnets | Architecture diagrams, use cases, extensions |
 | **[ECR](./modules/ecr/README.md)** | Container registry with security | Docker integration, lifecycle policies |
 
-## ⚙️ Configuration
+## Configuration
 
 ### Key Variables
 
-| Variable | Description | Required | Default |
-|----------|-------------|----------|---------|
-| `bucket_name` | S3 bucket for state (must be unique) | ✅ | - |
-| `ecr_name` | ECR repository name | ✅ | - |
-| `vpc_cidr_block` | VPC CIDR block | ✅ | `10.0.0.0/16` |
-| `scan_on_push` | Enable ECR vulnerability scanning | ❌ | `true` |
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `aws_region` | AWS region for resources | `eu-central-1` |
+| `bucket_name` | S3 bucket for state (must be unique) | `terraform-state-bucket-127214174194` |
+| `table_name` | DynamoDB table for state locking | `terraform-locks` |
+| `vpc_cidr_block` | VPC CIDR block | `10.0.0.0/16` |
 
-### Environment Variables
+### Environment Variables (Optional)
 ```bash
 export AWS_REGION=eu-central-1
 export AWS_PROFILE=your-profile
-export TF_VAR_bucket_name="your-unique-bucket-name"
 ```
 
-## 🛠️ Common Operations
+## Common Operations
 
 ```bash
+# Validate configuration
+./validate-backend.sh
+
+# Deploy backend infrastructure
+./deploy-backend.sh
+
 # View infrastructure
 terraform show
 terraform state list
-
-# Make changes
-terraform plan
-terraform apply
 
 # Use ECR repository
 ECR_URL=$(terraform output -raw ecr_repository_url)
 aws ecr get-login-password --region eu-central-1 | docker login --username AWS --password-stdin $ECR_URL
 docker push $ECR_URL:latest
-
-# Cleanup
-terraform destroy
 ```
 
-## 🚨 Troubleshooting
+## Troubleshooting
 
 | Issue | Solution |
 |-------|----------|
-| S3 bucket already exists | Use unique bucket name with random suffix |
+| S3 bucket already exists | Update `bucket_name` variable with unique suffix |
 | State lock issues | `terraform force-unlock LOCK_ID` |
-| AWS permission errors | Check IAM permissions and credentials |
+| AWS permission errors | Check IAM permissions and AWS credentials |
+| Terraform validation fails | Run `./validate-backend.sh` for detailed errors |
 
-For detailed troubleshooting, see individual module documentation.
-
-## 🔒 Security Highlights
+## Security Features
 
 - ✅ **State Security**: Encrypted S3 storage with DynamoDB locking
 - ✅ **Network Security**: Public/private subnet separation
 - ✅ **Container Security**: ECR vulnerability scanning and lifecycle policies
+- ✅ **Access Control**: S3 bucket public access blocked by default
 
-## 🎯 Next Steps
+## Next Steps
 
 After deployment, consider:
 - Adding monitoring with CloudWatch
@@ -167,8 +145,6 @@ After deployment, consider:
 - Adding NAT Gateways for private subnet internet access
 - Setting up VPC endpoints for AWS services
 
-For detailed implementation guides, refer to the individual module documentation linked above.
-
 ---
 
-**� For comprehensive documentation, configuration examples, and advanced usage, please refer to the module-specific README files.**
+**For comprehensive documentation and advanced configuration, refer to the module-specific README files.**
