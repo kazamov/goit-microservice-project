@@ -94,7 +94,7 @@ module "eks_dev" {
   cluster_name = "dev-eks-cluster"
   subnet_ids   = module.vpc.private_subnets
   
-  instance_type = "t3.small"
+  instance_type = "t2.micro"
   desired_size  = 1
   min_size      = 1
   max_size      = 2
@@ -151,7 +151,7 @@ module "eks_prod" {
 
 ### Development/Testing
 ```hcl
-instance_type = "t3.small"   # 2 vCPU, 2 GB RAM - $15/month per node
+instance_type = "t2.micro"   # 2 vCPU, 2 GB RAM - $15/month per node
 desired_size  = 1
 max_size      = 2
 ```
