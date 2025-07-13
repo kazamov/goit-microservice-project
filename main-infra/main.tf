@@ -31,7 +31,7 @@ module "vpc" {
   private_subnets    = var.private_subnets
   availability_zones = var.availability_zones
   vpc_name           = var.vpc_name
-  enable_nat_gateway = true
+  enable_nat_gateway = false
   single_nat_gateway = false
 }
 
@@ -42,4 +42,14 @@ module "ecr" {
   image_mutability         = var.image_mutability
   encryption_configuration = var.encryption_configuration
   tags                     = var.tags
+}
+
+module "eks" {
+  source        = "../modules/eks"
+  cluster_name  = "eks-cluster-demo"
+  subnet_ids    = module.vpc.public_subnets
+  instance_type = "t2.micro"
+  desired_size  = 1
+  max_size      = 2
+  min_size      = 1
 }

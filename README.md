@@ -11,6 +11,7 @@ This project provides a complete AWS infrastructure setup for microservices usin
 ├── main-infra/          # Main application infrastructure (VPC + ECR)
 └── modules/             # Reusable Terraform modules
     ├── ecr/            # Elastic Container Registry module
+    ├── eks/            # Elastic Kubernetes Service module
     ├── s3-backend/     # S3 backend storage module
     └── vpc/            # Virtual Private Cloud module
 ```
@@ -18,13 +19,13 @@ This project provides a complete AWS infrastructure setup for microservices usin
 ## Architecture
 
 ```
-┌─────────────────┐    ┌─────────────────┐
-│  infra-backend  │    │   main-infra    │
-│                 │    │                 │
-│ • S3 Bucket     │◄───┤ • VPC           │
-│ • DynamoDB      │    │ • ECR           │
-│ • Local State   │    │ • Remote State  │
-└─────────────────┘    └─────────────────┘
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│  infra-backend  │    │   main-infra    │    │   EKS Cluster   │
+│                 │    │                 │    │   (Optional)    │
+│ • S3 Bucket     │◄───┤ • VPC           │◄───┤ • EKS Cluster   │
+│ • DynamoDB      │    │ • ECR           │    │ • Node Groups   │
+│ • Local State   │    │ • Remote State  │    │ • Auto Scaling  │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
 ## Quick Start
@@ -72,6 +73,7 @@ terraform destroy
 - [Backend Infrastructure](./infra-backend/README.md) - S3 + DynamoDB setup
 - [Main Infrastructure](./main-infra/README.md) - VPC + ECR setup
 - [ECR Module](./modules/ecr/README.md) - Container registry module
+- [EKS Module](./modules/eks/README.md) - Kubernetes cluster module
 - [S3 Backend Module](./modules/s3-backend/README.md) - State storage module
 - [VPC Module](./modules/vpc/README.md) - Networking module
 
@@ -82,8 +84,9 @@ Each module includes comprehensive documentation with usage examples and best pr
 | Module | Purpose | Documentation |
 |--------|---------|---------------|
 | **[S3 Backend](./modules/s3-backend/README.md)** | Remote state storage and locking | Complete setup guide, security considerations |
-| **[VPC](./modules/vpc/README.md)** | Network infrastructure and subnets | Architecture diagrams, use cases, extensions |
+| **[VPC](./modules/vpc/README.md)** | Network infrastructure and subnets | Architecture diagrams, use cases, NAT Gateway options |
 | **[ECR](./modules/ecr/README.md)** | Container registry with security | Docker integration, lifecycle policies |
+| **[EKS](./modules/eks/README.md)** | Kubernetes cluster management | Cluster setup, node groups, auto-scaling configuration |
 
 ## Configuration
 
@@ -111,14 +114,46 @@ export AWS_PROFILE=your-profile
 # Deploy backend infrastructure
 ./deploy-backend.sh
 
-# View infrastructure
-terraform show
-terraform state list
+# Deploy main infrastructure (VPC + ECR)
+cd main-infra
+terraform init
+terraform apply
 
-# Use ECR repository
+# Deploy EKS cluster (optional)
+# Add EKS module to main-infra/main.tf first
+terraform plan
+terraform apply
+```
+
+### EKS Deployment Example
+
+To add EKS to your infrastructure, update `main-infra/main.tf`:
+
+```hcl
+module "eks" {
+  source       = "../modules/eks"
+  cluster_name = "my-eks-cluster"
+  subnet_ids   = module.vpc.private_subnets
+  
+  instance_type = "t3.medium"
+  desired_size  = 2
+  min_size      = 1
+  max_size      = 4
+}
+```
+
+### Container Workflow
+
+```bash
+# Build and push to ECR
 ECR_URL=$(terraform output -raw ecr_repository_url)
 aws ecr get-login-password --region eu-central-1 | docker login --username AWS --password-stdin $ECR_URL
+docker build -t my-app .
+docker tag my-app:latest $ECR_URL:latest
 docker push $ECR_URL:latest
+
+# Deploy to EKS
+kubectl apply -f k8s-manifests/
 ```
 
 ## Troubleshooting
@@ -132,18 +167,36 @@ docker push $ECR_URL:latest
 
 ## Security Features
 
+## Security Features
+
 - ✅ **State Security**: Encrypted S3 storage with DynamoDB locking
-- ✅ **Network Security**: Public/private subnet separation
+- ✅ **Network Security**: Public/private subnet separation with optional NAT Gateway
 - ✅ **Container Security**: ECR vulnerability scanning and lifecycle policies
+- ✅ **Kubernetes Security**: EKS IAM integration and RBAC
 - ✅ **Access Control**: S3 bucket public access blocked by default
 
 ## Next Steps
 
 After deployment, consider:
-- Adding monitoring with CloudWatch
-- Implementing CI/CD pipelines
+
+### Infrastructure Enhancements
+- Adding monitoring with CloudWatch and Container Insights
+- Implementing CI/CD pipelines with CodePipeline
 - Adding NAT Gateways for private subnet internet access
 - Setting up VPC endpoints for AWS services
+
+### Kubernetes Operations
+- Deploy EKS cluster using the provided module
+- Configure kubectl and AWS Load Balancer Controller
+- Set up Horizontal Pod Autoscaler (HPA)
+- Implement cluster monitoring and logging
+- Configure persistent storage with EBS CSI driver
+
+### Application Deployment
+- Build container images and push to ECR
+- Create Kubernetes manifests for your applications
+- Set up ingress controllers for traffic management
+- Implement GitOps workflows with ArgoCD or Flux
 
 ---
 
