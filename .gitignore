@@ -3,3 +3,8 @@
 *.tfstate.*
 .terraform/
 .terraform.lock.hcl
+
+# Helm
+charts/*/charts/
+charts/*/Chart.lock
+*.tgz
