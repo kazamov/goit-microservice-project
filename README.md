@@ -1,14 +1,20 @@
-# GoIT Microservice Terraform Project
+# GoIT Microservice Kubernetes Project
 
-This project provides a complete AWS infrastructure setup for microservices using Terraform, with proper state management and modular architecture.
+This project provides a complete AWS infrastructure setup for deploying Django microservices on Kubernetes using Terraform, with ECR for container registry and Helm for application deployment.
 
 ## Project Structure
 
 ```
 ├── deploy-backend.sh     # Automated backend deployment script
+├── deploy-main.sh        # Main infrastructure deployment script  
+├── deploy-app.sh         # Django application deployment script
+├── cleanup-app.sh        # Application cleanup script
 ├── validate-backend.sh   # Configuration validation script
 ├── infra-backend/        # Backend infrastructure (S3 + DynamoDB)
-├── main-infra/          # Main application infrastructure (VPC + ECR)
+├── main-infra/          # Main application infrastructure (VPC + ECR + EKS)
+├── django_app/          # Django application with Dockerfile
+├── charts/              # Helm charts for Kubernetes deployment
+│   └── django-app/      # Django Helm chart with HPA, ConfigMap, Service
 └── modules/             # Reusable Terraform modules
     ├── ecr/            # Elastic Container Registry module
     ├── eks/            # Elastic Kubernetes Service module
@@ -20,32 +26,101 @@ This project provides a complete AWS infrastructure setup for microservices usin
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│  infra-backend  │    │   main-infra    │    │   EKS Cluster   │
-│                 │    │                 │    │   (Optional)    │
+│  infra-backend  │    │   main-infra    │    │  EKS + Django   │
+│                 │    │                 │    │                 │
 │ • S3 Bucket     │◄───┤ • VPC           │◄───┤ • EKS Cluster   │
-│ • DynamoDB      │    │ • ECR           │    │ • Node Groups   │
-│ • Local State   │    │ • Remote State  │    │ • Auto Scaling  │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
+│ • DynamoDB      │    │ • ECR Registry  │    │ • Django Pods   │
+│ • Local State   │    │ • Remote State  │    │ • HPA (2-6)     │
+└─────────────────┘    └─────────────────┘    │ • LoadBalancer  │
+                                               └─────────────────┘
 ```
+
+## Features Implemented
+
+### ✅ Kubernetes Infrastructure
+- **EKS Cluster**: Managed Kubernetes cluster in existing VPC
+- **ECR Registry**: Docker image storage for Django application
+- **VPC Integration**: Reuses existing network infrastructure
+
+### ✅ Django Application Deployment
+- **Helm Chart**: Complete chart with deployment, service, HPA, configmap
+- **PostgreSQL Database**: Bitnami PostgreSQL 17.5 chart integration with persistent storage
+- **Horizontal Pod Autoscaler**: Auto-scaling from 2-6 pods based on CPU (>70%)
+- **LoadBalancer Service**: External access to Django application
+- **ConfigMap**: Environment variables management (moved from docker-compose)
+- **Database Migrations**: Automatic migrations with init container
+- **Health Checks**: Application and database connectivity endpoints
+
+### ✅ Production Ready Features
+- **Resource Limits**: CPU and memory requests/limits for proper scheduling
+- **Auto-scaling**: Horizontal scaling based on CPU utilization
+- **Health Checks**: Kubernetes readiness and liveness probes
+- **Rolling Updates**: Zero-downtime deployments
 
 ## Quick Start
 
-### 1. Validate Configuration (Recommended)
+### 1. Deploy Infrastructure
 
 ```bash
+# Validate configuration
 ./validate-backend.sh
-```
 
-### 2. Deploy Backend Infrastructure
-
-```bash
+# Deploy backend (S3 + DynamoDB)
 ./deploy-backend.sh
+
+# Deploy main infrastructure (VPC + ECR + EKS)
+./deploy-main.sh
 ```
 
-### 3. Deploy Main Infrastructure
+### 2. Deploy Django Application
 
 ```bash
-./deploy-main.sh
+# Build Docker image, push to ECR, and deploy with Helm
+./deploy-app.sh
+```
+
+### 3. Test Application
+
+```bash
+# Run comprehensive tests
+./test-app.sh
+```
+
+### 4. Access Application
+
+```bash
+# Get LoadBalancer URL
+kubectl get service django-app-django
+
+# Test endpoints
+curl http://<loadbalancer-url>/          # Root endpoint
+curl http://<loadbalancer-url>/health/   # Health check with DB status
+curl http://<loadbalancer-url>/admin/    # Django admin
+```
+
+### 4. Monitor Scaling
+
+```bash
+# Check HPA status
+kubectl get hpa
+kubectl describe hpa django-app-django-hpa
+
+# Check pod scaling
+kubectl get pods -w
+
+# Monitor PostgreSQL
+kubectl logs -l app.kubernetes.io/name=postgresql
+```
+
+### 5. Cleanup (Optional)
+
+```bash
+# Remove Django application
+./cleanup-app.sh
+
+# Destroy infrastructure
+cd main-infra && terraform destroy
+cd ../infra-backend && terraform destroy
 ```
 
 ### 4. Cleanup (when needed)
