@@ -17,6 +17,12 @@ spec:
         - sleep
       args:
         - 99d
+    - name: git
+      image: alpine/git
+      command:
+        - sleep
+      args:
+        - 99d
 """
     }
   }
@@ -25,6 +31,9 @@ spec:
     ECR_REGISTRY = "127214174194.dkr.ecr.eu-central-1.amazonaws.com"
     IMAGE_NAME   = "django_app"
     IMAGE_TAG    = "latest"
+
+    COMMIT_EMAIL = "jenkins@localhost"
+    COMMIT_NAME  = "jenkins"
   }
 
   stages {
@@ -40,6 +49,28 @@ spec:
               --insecure \\
               --skip-tls-verify
           '''
+        }
+      }
+    }
+
+    stage('Update Chart Tag in Git') {
+      steps {
+        container('git') {
+          withCredentials([usernamePassword(credentialsId: 'github-token', usernameVariable: 'GIT_USERNAME', passwordVariable: 'GIT_PAT')]) {
+            sh '''
+              git clone https://$GIT_USERNAME:$GIT_PAT@github.com/kazamov/goit-microservice-project.git
+              cd charts/django-app
+
+              sed -i "s/tag: .*/tag: $IMAGE_TAG/" values.yaml
+
+              git config user.email "$COMMIT_EMAIL"
+              git config user.name "$COMMIT_NAME"
+
+              git add values.yaml
+              git commit -m "Update image tag to $IMAGE_TAG"
+              git push origin main
+            '''
+          }
         }
       }
     }

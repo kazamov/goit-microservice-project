@@ -1,0 +1,23 @@
+applications:
+  - name: django-app
+    project: default
+    source:
+      repoURL: https://github.com/kazamov/goit-microservice-project.git
+      path: charts/django-app
+      targetRevision: main
+      helm:
+        valueFiles:
+          - values.yaml
+    destination:
+      server: https://kubernetes.default.svc
+      namespace: default
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: true
+
+repositories:
+  - name: django-repo
+    url: https://github.com/kazamov/goit-microservice-project.git
+    username: kazamov
+    password: mbgifwkjvxQCfY0y4SCU
