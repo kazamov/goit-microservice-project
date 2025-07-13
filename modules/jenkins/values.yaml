@@ -50,7 +50,7 @@
                   - usernamePassword:
                       scope: GLOBAL
                       id: github-token
-                      username: AndriyDmitriv
+                      username: kazamov
                       password: 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
                       description: GitHub PAT
       seed-job: |
@@ -61,7 +61,7 @@
                 scm {
                   git {
                     remote {
-                      url('<https://github.com/AndriyDmitriv/infra.git>')
+                      url('https://github.com/kazamov/goit-microservice-project.git')
                       credentials('github-token')
                     }
                     branches('*/main')
@@ -76,7 +76,7 @@
                             scm {
                               git {
                                 remote {
-                                  url("<https://github.com/AndriyDmitriv/infra.git>")
+                                  url("https://github.com/kazamov/goit-microservice-project.git")
                                   credentials("github-token")
                                 }
                                 branches("*/main")
