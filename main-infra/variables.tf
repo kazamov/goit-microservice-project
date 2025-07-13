@@ -51,7 +51,7 @@ variable "single_nat_gateway" {
 variable "ecr_name" {
   description = "Name of the ECR repository"
   type        = string
-  default     = "lesson-5-ecr"
+  default     = "django_app"
 }
 
 variable "scan_on_push" {
@@ -88,6 +88,6 @@ variable "tags" {
   default = {
     Project     = "GoIT Microservice"
     ManagedBy   = "Terraform"
-    Application = "lesson-5"
+    Application = "lesson-7"
   }
 }

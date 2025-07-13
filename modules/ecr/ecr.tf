@@ -14,7 +14,7 @@ resource "aws_ecr_repository" "ecr_main" {
   tags = merge(
     {
       Name        = var.ecr_name
-      Environment = "lesson-5"
+      Environment = "lesson-7"
     },
     var.tags
   )

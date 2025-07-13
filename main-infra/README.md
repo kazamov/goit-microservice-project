@@ -99,7 +99,7 @@ The backend (S3 bucket and DynamoDB table) will remain intact, allowing you to r
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ecr_name` | ECR repository name | `lesson-5-ecr` |
+| `ecr_name` | ECR repository name | `lesson-7-ecr` |
 | `scan_on_push` | Enable ECR image scanning | `true` |
 | `image_mutability` | ECR image mutability | `MUTABLE` |
 
