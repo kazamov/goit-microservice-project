@@ -10,14 +10,14 @@ applications:
           - values.yaml
     destination:
       server: https://kubernetes.default.svc
-      namespace: default
+      namespace: django-app
     syncPolicy:
       automated:
         prune: true
         selfHeal: true
+      syncOptions:
+        - CreateNamespace=true
 
 repositories:
-  - name: django-repo
+  - name: goit-microservice
     url: https://github.com/kazamov/goit-microservice-project.git
-    username: kazamov
-    password: mbgifwkjvxQCfY0y4SCU

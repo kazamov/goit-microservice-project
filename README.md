@@ -51,15 +51,38 @@ This project provides a complete AWS infrastructure setup for deploying Django m
 - **Database Migrations**: Automatic migrations with init container
 - **Health Checks**: Application and database connectivity endpoints
 
+### ✅ CI/CD Pipeline
+- **Jenkins**: Automated build and deployment pipeline with Kubernetes agents
+- **Kaniko**: Container image building in Kubernetes without Docker daemon
+- **Amazon ECR**: Docker image registry with automated pushes
+- **Argo CD**: GitOps continuous deployment with automatic synchronization
+- **Git Integration**: Automatic Helm chart updates with image tags
+- **Pipeline Triggers**: GitHub webhook integration for automated builds
+
 ### ✅ Production Ready Features
 - **Resource Limits**: CPU and memory requests/limits for proper scheduling
 - **Auto-scaling**: Horizontal scaling based on CPU utilization
 - **Health Checks**: Kubernetes readiness and liveness probes
 - **Rolling Updates**: Zero-downtime deployments
+- **Infrastructure as Code**: Complete Terraform automation
+- **GitOps**: Declarative deployments with Argo CD
 
 ## Quick Start
 
-### 1. Deploy Infrastructure
+### Option 1: Complete CI/CD Pipeline (Recommended)
+
+```bash
+# Deploy complete CI/CD infrastructure
+./deploy-ci-cd.sh
+
+# Configure Jenkins pipeline
+./configure-jenkins.sh
+
+# Test the entire pipeline
+./test-ci-cd.sh
+```
+
+### Option 2: Manual Infrastructure Deployment
 
 ```bash
 # Validate configuration
@@ -68,34 +91,51 @@ This project provides a complete AWS infrastructure setup for deploying Django m
 # Deploy backend (S3 + DynamoDB)
 ./deploy-backend.sh
 
-# Deploy main infrastructure (VPC + ECR + EKS)
+# Deploy main infrastructure (VPC + ECR + EKS + Jenkins + ArgoCD)
 ./deploy-main.sh
 ```
 
-### 2. Deploy Django Application
+### Option 3: Traditional App Deployment
 
 ```bash
 # Build Docker image, push to ECR, and deploy with Helm
 ./deploy-app.sh
 ```
 
-### 3. Test Application
+### Test Application
 
 ```bash
 # Run comprehensive tests
 ./test-app.sh
 ```
 
-### 4. Access Application
+### Access Services
 
+#### Django Application
 ```bash
 # Get LoadBalancer URL
-kubectl get service django-app-django
+kubectl get service django-app -n django-app
 
 # Test endpoints
 curl http://<loadbalancer-url>/          # Root endpoint
 curl http://<loadbalancer-url>/health/   # Health check with DB status
 curl http://<loadbalancer-url>/admin/    # Django admin
+```
+
+#### Jenkins
+```bash
+# Get Jenkins URL
+kubectl get service jenkins -n jenkins
+# Default: admin/admin123
+```
+
+#### Argo CD
+```bash
+# Get Argo CD URL
+kubectl get service argocd-server -n argocd
+
+# Get admin password
+kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath='{.data.password}' | base64 -d
 ```
 
 ### 4. Monitor Scaling
@@ -276,3 +316,50 @@ After deployment, consider:
 ---
 
 **For comprehensive documentation and advanced configuration, refer to the module-specific README files.**
+
+## CI/CD Pipeline
+
+### Pipeline Architecture
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Git Commit    │───▶│    Jenkins      │───▶│   Amazon ECR    │───▶│    Argo CD      │
+│                 │    │                 │    │                 │    │                 │
+│ • Source Code   │    │ • Build Image   │    │ • Store Image   │    │ • Deploy App    │
+│ • Jenkinsfile   │    │ • Push to ECR   │    │ • Tagged Images │    │ • Auto Sync     │
+│ • Dockerfile    │    │ • Update Chart  │    │ • Latest Tag    │    │ • Health Check  │
+└─────────────────┘    └─────────────────┘    └─────────────────┘    └─────────────────┘
+                                │                                               │
+                                ▼                                               ▼
+                       ┌─────────────────┐                            ┌─────────────────┐
+                       │  Git Repository │◄───────────────────────────│  EKS Cluster    │
+                       │                 │                            │                 │
+                       │ • Helm Charts   │                            │ • Django Pods   │
+                       │ • Updated Tags  │                            │ • PostgreSQL    │
+                       │ • values.yaml   │                            │ • Services      │
+                       └─────────────────┘                            └─────────────────┘
+```
+
+### Pipeline Steps
+
+1. **Developer commits code** → Triggers Jenkins webhook
+2. **Jenkins builds Docker image** → Uses Kaniko in Kubernetes
+3. **Image pushed to ECR** → With unique tag and 'latest'
+4. **Helm chart updated** → New image tag pushed to Git
+5. **Argo CD detects changes** → Automatically syncs to cluster
+6. **Application deployed** → Zero-downtime rolling update
+
+### Getting Started with CI/CD
+
+```bash
+# 1. Deploy complete infrastructure
+./deploy-ci-cd.sh
+
+# 2. Configure Jenkins pipeline
+./configure-jenkins.sh
+
+# 3. Test the pipeline
+./test-ci-cd.sh
+```
+
+For detailed CI/CD documentation, see [CI-CD-DOCUMENTATION.md](./CI-CD-DOCUMENTATION.md)

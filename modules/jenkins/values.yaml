@@ -32,6 +32,9 @@
     - docker-plugin:latest
     - docker-workflow:latest
     - job-dsl:latest
+    - pipeline-stage-view:latest
+    - blueocean:latest
+    - github-branch-source:latest
 
   serviceAccount:
      name: jenkins-sa

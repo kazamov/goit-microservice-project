@@ -30,13 +30,26 @@ spec:
   environment {
     ECR_REGISTRY = "127214174194.dkr.ecr.eu-central-1.amazonaws.com"
     IMAGE_NAME   = "django_app"
-    IMAGE_TAG    = "latest"
+    IMAGE_TAG    = "${env.BUILD_NUMBER}-${env.GIT_COMMIT.take(7)}"
 
     COMMIT_EMAIL = "jenkins@localhost"
     COMMIT_NAME  = "jenkins"
+    
+    GIT_REPO_URL = "https://github.com/kazamov/goit-microservice-project.git"
+    CHART_PATH   = "charts/django-app"
   }
 
   stages {
+    stage('Checkout') {
+      steps {
+        script {
+          // Get git commit hash for tagging
+          env.GIT_COMMIT = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
+          echo "Building image with tag: ${env.IMAGE_TAG}"
+        }
+      }
+    }
+
     stage('Build & Push Docker Image') {
       steps {
         container('kaniko') {
@@ -45,6 +58,7 @@ spec:
               --context `pwd` \\
               --dockerfile `pwd`/Dockerfile \\
               --destination=$ECR_REGISTRY/$IMAGE_NAME:$IMAGE_TAG \\
+              --destination=$ECR_REGISTRY/$IMAGE_NAME:latest \\
               --cache=true \\
               --insecure \\
               --skip-tls-verify
@@ -58,17 +72,23 @@ spec:
         container('git') {
           withCredentials([usernamePassword(credentialsId: 'github-token', usernameVariable: 'GIT_USERNAME', passwordVariable: 'GIT_PAT')]) {
             sh '''
-              git clone https://$GIT_USERNAME:$GIT_PAT@github.com/kazamov/goit-microservice-project.git
-              cd charts/django-app
+              # Clone the repository
+              git clone $GIT_REPO_URL repo
+              cd repo/$CHART_PATH
 
+              # Update the image tag in values.yaml
               sed -i "s/tag: .*/tag: $IMAGE_TAG/" values.yaml
 
+              # Configure git
               git config user.email "$COMMIT_EMAIL"
               git config user.name "$COMMIT_NAME"
 
+              # Commit and push changes
               git add values.yaml
-              git commit -m "Update image tag to $IMAGE_TAG"
+              git commit -m "Update Django app image tag to $IMAGE_TAG [skip ci]"
               git push origin main
+              
+              echo "Successfully updated chart with new image tag: $IMAGE_TAG"
             '''
           }
         }
