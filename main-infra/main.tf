@@ -9,6 +9,14 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 6.0"
     }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.25"
+    }
+    helm = {
+      source  = "hashicorp/helm"
+      version = "~> 2.12"
+    }
   }
 
   backend "s3" {
@@ -22,6 +30,30 @@ terraform {
 
 provider "aws" {
   region = var.aws_region
+}
+
+# Get EKS cluster data
+data "aws_eks_cluster" "eks" {
+  name = module.eks.cluster_name
+}
+
+data "aws_eks_cluster_auth" "eks" {
+  name = module.eks.cluster_name
+}
+
+# Configure Kubernetes provider
+provider "kubernetes" {
+  host                   = data.aws_eks_cluster.eks.endpoint
+  cluster_ca_certificate = base64decode(data.aws_eks_cluster.eks.certificate_authority[0].data)
+  token                  = data.aws_eks_cluster_auth.eks.token
+}
+
+provider "helm" {
+  kubernetes {
+    host                   = data.aws_eks_cluster.eks.endpoint
+    cluster_ca_certificate = base64decode(data.aws_eks_cluster.eks.certificate_authority[0].data)
+    token                  = data.aws_eks_cluster_auth.eks.token
+  }
 }
 
 module "vpc" {
@@ -52,4 +84,18 @@ module "eks" {
   desired_size  = 1
   max_size      = 2
   min_size      = 1
+}
+
+module "jenkins" {
+  source            = "../modules/jenkins"
+  cluster_name      = module.eks.cluster_name
+  oidc_provider_arn = module.eks.oidc_provider_arn
+  oidc_provider_url = module.eks.cluster_oidc_issuer_url
+  kubeconfig        = ""
+
+  providers = {
+    helm = helm
+  }
+
+  depends_on = [module.eks]
 }
