@@ -47,7 +47,7 @@ locals {
   default_parameters = {
     max_connections            = "100"
     log_statement              = "all"
-    work_mem                   = "4MB"
+    work_mem                   = "4096" # 4MB in KB
     shared_preload_libraries   = "pg_stat_statements"
     log_min_duration_statement = "1000"
   }

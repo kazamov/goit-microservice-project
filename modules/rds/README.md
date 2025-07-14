@@ -59,7 +59,7 @@ module "aurora_postgres" {
   # Custom parameters
   parameters = {
     max_connections = "200"
-    work_mem       = "8MB"
+    work_mem       = "8192"  # 8MB in KB
     log_statement  = "all"
   }
   
@@ -104,7 +104,7 @@ module "standard_postgres" {
   parameters = {
     max_connections          = "150"
     shared_preload_libraries = "pg_stat_statements"
-    work_mem                = "6MB"
+    work_mem                = "6144"  # 6MB in KB
   }
   
   tags = {
@@ -214,7 +214,7 @@ module "aurora_mysql" {
 parameters = {
   max_connections          = "100"
   log_statement           = "all"
-  work_mem                = "4MB"
+  work_mem                = "4096"  # 4MB in KB
   shared_preload_libraries = "pg_stat_statements"
   log_min_duration_statement = "1000"
 }
@@ -326,6 +326,25 @@ backup_retention_period = 30
 ### Aurora
 - `aurora-postgresql`
 - `aurora-mysql`
+
+## Parameter Formatting
+
+When configuring database parameters, use the correct format for your database engine:
+
+### PostgreSQL Parameters
+- **Memory parameters**: Use kilobytes (KB) as integers
+  - `work_mem = "4096"` (4MB)
+  - `shared_buffers = "32768"` (32MB)
+- **Time parameters**: Use milliseconds
+  - `log_min_duration_statement = "1000"` (1 second)
+- **String parameters**: Use quoted strings
+  - `log_statement = "all"`
+  - `shared_preload_libraries = "pg_stat_statements"`
+
+### MySQL Parameters
+- **Memory parameters**: Can use units or percentages
+  - `innodb_buffer_pool_size = "75"` (75% of memory)
+  - `key_buffer_size = "268435456"` (256MB in bytes)
 
 ## Security
 
