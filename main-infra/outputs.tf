@@ -142,3 +142,61 @@ output "rds_connection_string" {
   value       = module.rds.connection_string
   sensitive   = true
 }
+
+# Aurora PostgreSQL Outputs
+output "aurora_endpoint" {
+  description = "Aurora cluster endpoint"
+  value       = module.aurora_postgres_example.endpoint
+}
+
+output "aurora_reader_endpoint" {
+  description = "Aurora cluster reader endpoint"
+  value       = module.aurora_postgres_example.reader_endpoint
+}
+
+output "aurora_port" {
+  description = "Aurora cluster port"
+  value       = module.aurora_postgres_example.port
+}
+
+output "aurora_database_name" {
+  description = "Name of the database"
+  value       = module.aurora_postgres_example.database_name
+}
+
+output "aurora_username" {
+  description = "Master username for the database"
+  value       = module.aurora_postgres_example.username
+  sensitive   = true
+}
+
+output "aurora_security_group_id" {
+  description = "ID of the Aurora security group"
+  value       = module.aurora_postgres_example.security_group_id
+}
+
+output "aurora_subnet_group_name" {
+  description = "Name of the DB subnet group"
+  value       = module.aurora_postgres_example.subnet_group_name
+}
+
+output "aurora_identifier" {
+  description = "Aurora cluster identifier"
+  value       = module.aurora_postgres_example.identifier
+}
+
+output "aurora_parameter_group_name" {
+  description = "Name of the parameter group"
+  value       = module.aurora_postgres_example.parameter_group_name
+}
+
+output "aurora_engine_version" {
+  description = "Running version of the database engine"
+  value       = module.aurora_postgres_example.engine_version
+}
+
+output "aurora_connection_string" {
+  description = "Database connection string"
+  value       = module.aurora_postgres_example.connection_string
+  sensitive   = true
+}
