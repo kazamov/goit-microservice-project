@@ -112,3 +112,44 @@ module "argo_cd" {
 
   depends_on = [module.eks]
 }
+
+module "rds" {
+  source = "../modules/rds"
+
+  name       = "myapp-db"
+  use_aurora = false
+
+  # RDS-specific settings
+  engine                     = "postgres"
+  engine_version             = "17.2"
+  parameter_group_family_rds = "postgres17"
+
+  # Database configuration
+  db_name  = "myapp"
+  username = "postgres"
+  password = "admin123AWS23"
+
+  # Infrastructure
+  vpc_id              = module.vpc.vpc_id
+  subnet_private_ids  = module.vpc.private_subnets
+  subnet_public_ids   = module.vpc.public_subnets
+  publicly_accessible = true
+
+  # Instance configuration
+  instance_class          = "db.t3.medium"
+  allocated_storage       = 20
+  multi_az                = true
+  backup_retention_period = 7
+
+  # Custom parameters
+  parameters = {
+    max_connections            = "200"
+    log_min_duration_statement = "500"
+  }
+
+  tags = {
+    Environment = "dev"
+    Project     = "myapp"
+  }
+}
+

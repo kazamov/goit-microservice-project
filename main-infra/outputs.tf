@@ -84,3 +84,61 @@ output "jenkins_release" {
 output "jenkins_namespace" {
   value = module.jenkins.jenkins_namespace
 }
+
+# RDS Outputs
+output "rds_endpoint" {
+  description = "RDS instance endpoint or Aurora cluster endpoint"
+  value       = module.rds.endpoint
+}
+
+output "rds_reader_endpoint" {
+  description = "Aurora cluster reader endpoint (Aurora only)"
+  value       = module.rds.reader_endpoint
+}
+
+output "rds_port" {
+  description = "RDS instance or Aurora cluster port"
+  value       = module.rds.port
+}
+
+output "rds_database_name" {
+  description = "Name of the database"
+  value       = module.rds.database_name
+}
+
+output "rds_username" {
+  description = "Master username for the database"
+  value       = module.rds.username
+  sensitive   = true
+}
+
+output "rds_security_group_id" {
+  description = "ID of the RDS security group"
+  value       = module.rds.security_group_id
+}
+
+output "rds_subnet_group_name" {
+  description = "Name of the DB subnet group"
+  value       = module.rds.subnet_group_name
+}
+
+output "rds_identifier" {
+  description = "RDS instance identifier or Aurora cluster identifier"
+  value       = module.rds.identifier
+}
+
+output "rds_parameter_group_name" {
+  description = "Name of the parameter group"
+  value       = module.rds.parameter_group_name
+}
+
+output "rds_engine_version" {
+  description = "Running version of the database engine"
+  value       = module.rds.engine_version
+}
+
+output "rds_connection_string" {
+  description = "Database connection string"
+  value       = module.rds.connection_string
+  sensitive   = true
+}

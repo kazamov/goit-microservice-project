@@ -189,6 +189,7 @@ terraform destroy
 - [Main Infrastructure](./main-infra/README.md) - VPC + ECR setup
 - [ECR Module](./modules/ecr/README.md) - Container registry module
 - [EKS Module](./modules/eks/README.md) - Kubernetes cluster module
+- [RDS Module](./modules/rds/README.md) - Universal RDS/Aurora database module
 - [S3 Backend Module](./modules/s3-backend/README.md) - State storage module
 - [VPC Module](./modules/vpc/README.md) - Networking module
 
@@ -202,6 +203,7 @@ Each module includes comprehensive documentation with usage examples and best pr
 | **[VPC](./modules/vpc/README.md)** | Network infrastructure and subnets | Architecture diagrams, use cases, NAT Gateway options |
 | **[ECR](./modules/ecr/README.md)** | Container registry with security | Docker integration, lifecycle policies |
 | **[EKS](./modules/eks/README.md)** | Kubernetes cluster management | Cluster setup, node groups, auto-scaling configuration |
+| **[RDS](./modules/rds/README.md)** | Universal RDS/Aurora database module | Aurora and Standard RDS support, parameter groups, security |
 
 ## Configuration
 
