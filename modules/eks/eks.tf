@@ -50,6 +50,7 @@ resource "aws_eks_cluster" "eks" {
 
 // EKS Access Entry for current AWS user to access EKS UI
 resource "aws_eks_access_entry" "eks_admin" {
+  count         = var.create_access_entry ? 1 : 0
   cluster_name  = aws_eks_cluster.eks.name
   principal_arn = data.aws_caller_identity.current.arn
   type          = "STANDARD"
@@ -57,6 +58,7 @@ resource "aws_eks_access_entry" "eks_admin" {
 
 # Associate admin policy with the access entry
 resource "aws_eks_access_policy_association" "admin_policy" {
+  count         = var.create_access_entry ? 1 : 0
   cluster_name  = aws_eks_cluster.eks.name
   principal_arn = data.aws_caller_identity.current.arn
   policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"

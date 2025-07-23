@@ -32,18 +32,27 @@ provider "aws" {
   region = var.aws_region
 }
 
-# Configure Kubernetes provider (will be configured after EKS creation)
+# Get EKS cluster data for provider configuration
+data "aws_eks_cluster" "cluster" {
+  name = module.eks.cluster_name
+}
+
+data "aws_eks_cluster_auth" "cluster" {
+  name = module.eks.cluster_name
+}
+
+# Configure Kubernetes provider
 provider "kubernetes" {
-  host                   = try(data.aws_eks_cluster.eks[0].endpoint, "")
-  cluster_ca_certificate = try(base64decode(data.aws_eks_cluster.eks[0].certificate_authority[0].data), "")
-  token                  = try(data.aws_eks_cluster_auth.eks[0].token, "")
+  host                   = data.aws_eks_cluster.cluster.endpoint
+  cluster_ca_certificate = base64decode(data.aws_eks_cluster.cluster.certificate_authority[0].data)
+  token                  = data.aws_eks_cluster_auth.cluster.token
 }
 
 provider "helm" {
   kubernetes {
-    host                   = try(data.aws_eks_cluster.eks[0].endpoint, "")
-    cluster_ca_certificate = try(base64decode(data.aws_eks_cluster.eks[0].certificate_authority[0].data), "")
-    token                  = try(data.aws_eks_cluster_auth.eks[0].token, "")
+    host                   = data.aws_eks_cluster.cluster.endpoint
+    cluster_ca_certificate = base64decode(data.aws_eks_cluster.cluster.certificate_authority[0].data)
+    token                  = data.aws_eks_cluster_auth.cluster.token
   }
 }
 
@@ -81,13 +90,14 @@ module "ecr" {
 }
 
 module "eks" {
-  source        = "../modules/eks"
-  cluster_name  = "eks-cluster-demo"
-  subnet_ids    = module.vpc.public_subnets
-  instance_type = "t3.small"
-  desired_size  = 1
-  max_size      = 2
-  min_size      = 1
+  source              = "../modules/eks"
+  cluster_name        = "eks-cluster-demo"
+  subnet_ids          = module.vpc.public_subnets
+  instance_type       = "t3.medium"
+  desired_size        = 2
+  max_size            = 3
+  min_size            = 1
+  create_access_entry = false
 }
 
 module "jenkins" {

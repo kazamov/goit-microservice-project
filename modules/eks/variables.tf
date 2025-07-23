@@ -38,3 +38,9 @@ variable "min_size" {
   default     = 1
 }
 
+variable "create_access_entry" {
+  description = "Whether to create EKS access entry for current user"
+  type        = bool
+  default     = true
+}
+

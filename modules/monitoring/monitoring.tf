@@ -101,33 +101,41 @@ resource "helm_release" "prometheus" {
   depends_on = [var.depends_on_modules]
 }
 
-# Service Monitor for Django Application
-resource "kubernetes_manifest" "django_service_monitor" {
-  manifest = {
-    apiVersion = "monitoring.coreos.com/v1"
-    kind       = "ServiceMonitor"
-    metadata = {
-      name      = "django-app-monitor"
-      namespace = var.namespace
-      labels = {
-        app = "django-app"
-      }
-    }
-    spec = {
-      selector = {
-        matchLabels = {
-          app = "django-app"
-        }
-      }
-      endpoints = [
-        {
-          port     = "http"
-          path     = "/metrics"
-          interval = "30s"
-        }
-      ]
-    }
+# Wait for Prometheus CRDs to be available
+resource "time_sleep" "wait_for_prometheus_crds" {
+  depends_on = [helm_release.prometheus]
+
+  create_duration = "90s"
+}
+
+# Service Monitor for Django Application using null_resource to avoid CRD validation issues
+resource "null_resource" "django_service_monitor" {
+  provisioner "local-exec" {
+    command = <<-EOF
+      kubectl apply -f - <<YAML
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: django-app-monitor
+  namespace: ${var.namespace}
+  labels:
+    app: django-app
+spec:
+  selector:
+    matchLabels:
+      app: django-app
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+YAML
+    EOF
   }
 
-  depends_on = [helm_release.prometheus]
+  provisioner "local-exec" {
+    when    = destroy
+    command = "kubectl delete servicemonitor django-app-monitor -n monitoring --ignore-not-found=true"
+  }
+
+  depends_on = [time_sleep.wait_for_prometheus_crds]
 }
