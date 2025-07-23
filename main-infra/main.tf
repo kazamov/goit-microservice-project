@@ -32,27 +32,18 @@ provider "aws" {
   region = var.aws_region
 }
 
-# Get EKS cluster data for provider configuration
-data "aws_eks_cluster" "cluster" {
-  name = module.eks.cluster_name
-}
-
-data "aws_eks_cluster_auth" "cluster" {
-  name = module.eks.cluster_name
-}
-
-# Configure Kubernetes provider
+# Configure Kubernetes provider conditionally - only when cluster exists
 provider "kubernetes" {
-  host                   = data.aws_eks_cluster.cluster.endpoint
-  cluster_ca_certificate = base64decode(data.aws_eks_cluster.cluster.certificate_authority[0].data)
-  token                  = data.aws_eks_cluster_auth.cluster.token
+  host                   = var.enable_addons ? module.eks.cluster_endpoint : null
+  cluster_ca_certificate = var.enable_addons ? base64decode(module.eks.cluster_certificate_authority_data) : null
+  token                  = var.enable_addons ? data.aws_eks_cluster_auth.eks[0].token : null
 }
 
 provider "helm" {
   kubernetes {
-    host                   = data.aws_eks_cluster.cluster.endpoint
-    cluster_ca_certificate = base64decode(data.aws_eks_cluster.cluster.certificate_authority[0].data)
-    token                  = data.aws_eks_cluster_auth.cluster.token
+    host                   = var.enable_addons ? module.eks.cluster_endpoint : null
+    cluster_ca_certificate = var.enable_addons ? base64decode(module.eks.cluster_certificate_authority_data) : null
+    token                  = var.enable_addons ? data.aws_eks_cluster_auth.eks[0].token : null
   }
 }
 

@@ -40,3 +40,13 @@ output "eks_console_url" {
   description = "URL to access EKS cluster in AWS Console"
   value       = "https://${data.aws_caller_identity.current.account_id}.console.aws.amazon.com/eks/home?region=${data.aws_region.current.id}#/clusters/${aws_eks_cluster.eks.name}"
 }
+
+output "cluster_endpoint" {
+  description = "EKS cluster endpoint"
+  value       = aws_eks_cluster.eks.endpoint
+}
+
+output "cluster_certificate_authority_data" {
+  description = "EKS cluster certificate authority data"
+  value       = aws_eks_cluster.eks.certificate_authority[0].data
+}
