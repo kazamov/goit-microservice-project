@@ -1,5 +1,5 @@
 image:
-  repository: 127214174194.dkr.ecr.eu-central-1.amazonaws.com/django_app
+  repository: AWS_ACCOUNT_ID.dkr.ecr.AWS_REGION.amazonaws.com/django_app
   tag: latest
   pullPolicy: IfNotPresent
 
