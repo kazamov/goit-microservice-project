@@ -14,34 +14,25 @@ spec:
     spec:
       initContainers:
         - name: wait-for-db
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          command: ['sh', '-c']
-          args:
+          image: postgres:15-alpine
+          command: 
+            - sh
+            - -c
             - |
               echo "Waiting for PostgreSQL to be ready..."
-              until python -c "
-              import psycopg2
-              import os
-              import sys
-              try:
-                  conn = psycopg2.connect(
-                      host=os.environ['POSTGRES_HOST'],
-                      port=os.environ['POSTGRES_PORT'],
-                      database=os.environ['POSTGRES_DB'],
-                      user=os.environ['POSTGRES_USER'],
-                      password=os.environ['POSTGRES_PASSWORD']
-                  )
-                  conn.close()
-                  print('PostgreSQL is ready!')
-              except Exception as e:
-                  print(f'PostgreSQL not ready: {e}')
-                  sys.exit(1)
-              "; do
+              until pg_isready -h $POSTGRES_HOST -p $POSTGRES_PORT -U $POSTGRES_USER; do
                 echo "PostgreSQL is unavailable - sleeping"
                 sleep 2
               done
-              echo "Running Django migrations..."
-              python manage.py migrate
+              echo "PostgreSQL is ready!"
+          envFrom:
+            - configMapRef:
+                name: {{ .Release.Name }}-config
+        - name: django-migrate
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          workingDir: /app
+          command: ["python"]
+          args: ["manage.py", "migrate"]
           envFrom:
             - configMapRef:
                 name: {{ .Release.Name }}-config

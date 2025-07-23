@@ -96,11 +96,17 @@ else
 fi
 
 # Check VPC
-VPC_ID=$(aws ec2 describe-vpcs --filters "Name=tag:Name,Values=main-vpc" --query 'Vpcs[0].VpcId' --output text 2>/dev/null)
+VPC_ID=$(aws ec2 describe-vpcs --filters "Name=tag:Name,Values=main-vpc-vpc" --query 'Vpcs[0].VpcId' --output text 2>/dev/null)
 if [ "$VPC_ID" != "None" ] && [ "$VPC_ID" != "" ]; then
     print_status "VPC exists: $VPC_ID" 0
 else
-    print_status "VPC NOT found" 1
+    # Fallback: check for any VPC with main-vpc in the name
+    VPC_ID=$(aws ec2 describe-vpcs --filters "Name=tag:Name,Values=*main-vpc*" --query 'Vpcs[0].VpcId' --output text 2>/dev/null)
+    if [ "$VPC_ID" != "None" ] && [ "$VPC_ID" != "" ]; then
+        print_status "VPC exists: $VPC_ID" 0
+    else
+        print_status "VPC NOT found" 1
+    fi
 fi
 
 # Check EKS cluster
@@ -152,25 +158,41 @@ echo
 echo "6. Checking Jenkins..."
 echo "---------------------"
 
-if kubectl get deployment jenkins -n jenkins &> /dev/null; then
+# Check for Jenkins StatefulSet (which is the actual deployment type)
+if kubectl get statefulset jenkins -n jenkins &> /dev/null; then
+    JENKINS_READY=$(kubectl get statefulset jenkins -n jenkins -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
+    JENKINS_DESIRED=$(kubectl get statefulset jenkins -n jenkins -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "1")
+    
+    if [ "$JENKINS_READY" = "$JENKINS_DESIRED" ]; then
+        print_status "Jenkins StatefulSet: $JENKINS_READY/$JENKINS_DESIRED pods ready" 0
+        
+        # Check if service exists
+        if kubectl get service jenkins -n jenkins &> /dev/null; then
+            print_status "Jenkins service exists" 0
+            JENKINS_LB=$(kubectl get service jenkins -n jenkins -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null)
+            if [ "$JENKINS_LB" != "" ]; then
+                print_info "Access: http://$JENKINS_LB or kubectl port-forward svc/jenkins 8080:80 -n jenkins"
+            else
+                print_info "Access: kubectl port-forward svc/jenkins 8080:80 -n jenkins"
+            fi
+        else
+            print_status "Jenkins service NOT found" 1
+        fi
+    else
+        print_status "Jenkins StatefulSet: $JENKINS_READY/$JENKINS_DESIRED pods ready" 1
+    fi
+elif kubectl get deployment jenkins -n jenkins &> /dev/null; then
+    # Fallback: check for deployment
     JENKINS_READY=$(kubectl get deployment jenkins -n jenkins -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
     JENKINS_DESIRED=$(kubectl get deployment jenkins -n jenkins -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "1")
     
     if [ "$JENKINS_READY" = "$JENKINS_DESIRED" ]; then
         print_status "Jenkins deployment: $JENKINS_READY/$JENKINS_DESIRED pods ready" 0
-        
-        # Check if service exists
-        if kubectl get service jenkins -n jenkins &> /dev/null; then
-            print_status "Jenkins service exists" 0
-            print_info "Access: kubectl port-forward svc/jenkins 8080:8080 -n jenkins"
-        else
-            print_status "Jenkins service NOT found" 1
-        fi
     else
         print_status "Jenkins deployment: $JENKINS_READY/$JENKINS_DESIRED pods ready" 1
     fi
 else
-    print_status "Jenkins deployment NOT found" 1
+    print_status "Jenkins NOT found" 1
 fi
 
 echo
@@ -208,9 +230,9 @@ if [ "$MONITORING_PODS" -gt 0 ]; then
     print_status "Monitoring namespace has $MONITORING_PODS pods" 0
     
     # Check Prometheus
-    if kubectl get statefulset prometheus-kube-prometheus-prometheus -n monitoring &> /dev/null; then
-        PROM_READY=$(kubectl get statefulset prometheus-kube-prometheus-prometheus -n monitoring -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
-        PROM_DESIRED=$(kubectl get statefulset prometheus-kube-prometheus-prometheus -n monitoring -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "1")
+    if kubectl get statefulset prometheus-prometheus-kube-prometheus-prometheus -n monitoring &> /dev/null; then
+        PROM_READY=$(kubectl get statefulset prometheus-prometheus-kube-prometheus-prometheus -n monitoring -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
+        PROM_DESIRED=$(kubectl get statefulset prometheus-prometheus-kube-prometheus-prometheus -n monitoring -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "1")
         
         if [ "$PROM_READY" = "$PROM_DESIRED" ]; then
             print_status "Prometheus: $PROM_READY/$PROM_DESIRED replicas ready" 0
@@ -253,12 +275,23 @@ else
 fi
 
 # Check Django deployment
-if kubectl get deployment django-app -n default &> /dev/null; then
-    DJANGO_READY=$(kubectl get deployment django-app -n default -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
-    DJANGO_DESIRED=$(kubectl get deployment django-app -n default -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "1")
+if kubectl get deployment django-app-django -n default &> /dev/null; then
+    DJANGO_READY=$(kubectl get deployment django-app-django -n default -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
+    DJANGO_DESIRED=$(kubectl get deployment django-app-django -n default -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "1")
     
     if [ "$DJANGO_READY" = "$DJANGO_DESIRED" ]; then
         print_status "Django deployment: $DJANGO_READY/$DJANGO_DESIRED pods ready" 0
+        
+        # Check Django service
+        if kubectl get service django-app-django -n default &> /dev/null; then
+            print_status "Django service exists" 0
+            DJANGO_LB=$(kubectl get service django-app-django -n default -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null)
+            if [ "$DJANGO_LB" != "" ]; then
+                print_info "Access: http://$DJANGO_LB/admin/"
+            fi
+        else
+            print_status "Django service NOT found" 1
+        fi
     else
         print_status "Django deployment: $DJANGO_READY/$DJANGO_DESIRED pods ready" 1
     fi
@@ -328,10 +361,11 @@ echo
 echo "🎉 Validation completed!"
 echo
 echo "Next steps:"
-echo "1. Access Jenkins: kubectl port-forward svc/jenkins 8080:8080 -n jenkins"
+echo "1. Access Jenkins: kubectl port-forward svc/jenkins 8080:80 -n jenkins"
 echo "2. Access Argo CD: kubectl port-forward svc/argocd-server 8081:443 -n argocd"
 echo "3. Access Grafana: kubectl port-forward svc/prometheus-grafana 3000:80 -n monitoring"
 echo "4. Access Prometheus: kubectl port-forward svc/prometheus-kube-prometheus-prometheus 9090:9090 -n monitoring"
+echo "5. Access Django: kubectl port-forward svc/django-app-django 8000:80 -n default"
 echo
 echo "🖥️  AWS Console Access:"
 echo "======================"

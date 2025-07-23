@@ -26,34 +26,15 @@ resources:
 
 config:
   POSTGRES_PORT: "5432"
-  POSTGRES_HOST: "django-app-postgresql"
-  POSTGRES_USER: django_user
-  POSTGRES_DB: django_db
-  POSTGRES_PASSWORD: pass9764gd
+  POSTGRES_HOST: "myapp-db.czug8wokie9j.eu-central-1.rds.amazonaws.com"
+  POSTGRES_USER: postgres
+  POSTGRES_DB: myapp
+  POSTGRES_PASSWORD: admin123AWS23
   DJANGO_DEBUG: "False"
   DJANGO_ALLOWED_HOSTS: "*"
   DJANGO_SECRET_KEY: "your-secret-key-here-change-in-production"
 
-# Bitnami PostgreSQL configuration
+# Bitnami PostgreSQL configuration (disabled - using RDS)
 postgresql:
-  enabled: true
-  auth:
-    postgresPassword: "postgres_admin_pass"
-    username: "django_user"
-    password: "pass9764gd"
-    database: "django_db"
-  primary:
-    persistence:
-      enabled: true
-      size: 10Gi
-      storageClass: "gp2"
-    resources:
-      requests:
-        memory: 256Mi
-        cpu: 250m
-      limits:
-        memory: 512Mi
-        cpu: 500m
-  metrics:
-    enabled: false
+  enabled: false
 
