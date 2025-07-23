@@ -30,3 +30,13 @@ output "cluster_oidc_issuer_url" {
   description = "The URL on the EKS cluster OIDC Issuer"
   value       = aws_eks_cluster.eks.identity[0].oidc[0].issuer
 }
+
+output "current_user_arn" {
+  description = "ARN of the current AWS user with EKS access"
+  value       = data.aws_caller_identity.current.arn
+}
+
+output "eks_console_url" {
+  description = "URL to access EKS cluster in AWS Console"
+  value       = "https://${data.aws_caller_identity.current.account_id}.console.aws.amazon.com/eks/home?region=${data.aws_region.current.name}#/clusters/${aws_eks_cluster.eks.name}"
+}

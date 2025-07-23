@@ -201,6 +201,19 @@ kubectl port-forward svc/django-app 8000:80 -n default
 # Access: http://localhost:8000
 ```
 
+### AWS Console Access
+The EKS cluster is automatically configured with access permissions for the current AWS user. After deployment, you can access the EKS cluster directly in the AWS Console:
+
+```bash
+# Get EKS Console URL
+terraform output -raw eks_console_url
+
+# Current user with access
+terraform output -raw current_user_arn
+```
+
+**Note**: The deployment automatically creates EKS access entries and policies for the current AWS user, allowing you to view and manage Kubernetes resources directly in the AWS EKS console.
+
 ### Service Credentials
 ```bash
 # Jenkins admin password

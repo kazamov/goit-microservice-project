@@ -333,5 +333,21 @@ echo "2. Access Argo CD: kubectl port-forward svc/argocd-server 8081:443 -n argo
 echo "3. Access Grafana: kubectl port-forward svc/prometheus-grafana 3000:80 -n monitoring"
 echo "4. Access Prometheus: kubectl port-forward svc/prometheus-kube-prometheus-prometheus 9090:9090 -n monitoring"
 echo
+echo "🖥️  AWS Console Access:"
+echo "======================"
+# Get EKS console URL from Terraform output if available
+if [ -d "main-infra" ]; then
+    cd main-infra
+    EKS_CONSOLE_URL=$(terraform output -raw eks_console_url 2>/dev/null || echo "Run terraform apply to get EKS Console URL")
+    CURRENT_USER=$(terraform output -raw current_user_arn 2>/dev/null || echo "Current user information not available")
+    cd ..
+    
+    echo "EKS Cluster Console: $EKS_CONSOLE_URL"
+    echo "Current AWS User: $CURRENT_USER"
+    echo "Note: EKS UI access has been configured for the current AWS user"
+else
+    echo "EKS Console access information not available (terraform not applied)"
+fi
+echo
 echo "For detailed logs, run: kubectl logs -f deployment/<service-name> -n <namespace>"
 echo

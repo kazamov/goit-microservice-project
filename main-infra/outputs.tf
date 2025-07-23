@@ -77,6 +77,16 @@ output "eks_node_role_arn" {
   value       = module.eks.eks_node_role_arn
 }
 
+output "eks_console_url" {
+  description = "URL to access EKS cluster in AWS Console"
+  value       = module.eks.eks_console_url
+}
+
+output "current_user_arn" {
+  description = "ARN of the current AWS user with EKS access"
+  value       = module.eks.current_user_arn
+}
+
 output "jenkins_release" {
   value = module.jenkins.jenkins_release_name
 }
