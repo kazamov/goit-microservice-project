@@ -1,3 +1,9 @@
+# Get current AWS caller identity for EKS access
+data "aws_caller_identity" "current" {}
+
+# Get current AWS region
+data "aws_region" "current" {}
+
 resource "aws_iam_role" "eks" {
   name = "${var.cluster_name}-eks-cluster"
 
@@ -41,12 +47,6 @@ resource "aws_eks_cluster" "eks" {
 
   depends_on = [aws_iam_role_policy_attachment.eks]
 }
-
-# Get current AWS caller identity for EKS access
-data "aws_caller_identity" "current" {}
-
-# Get current AWS region
-data "aws_region" "current" {}
 
 // EKS Access Entry for current AWS user to access EKS UI
 resource "aws_eks_access_entry" "eks_admin" {

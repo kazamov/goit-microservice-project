@@ -38,5 +38,5 @@ output "current_user_arn" {
 
 output "eks_console_url" {
   description = "URL to access EKS cluster in AWS Console"
-  value       = "https://${data.aws_caller_identity.current.account_id}.console.aws.amazon.com/eks/home?region=${data.aws_region.current.name}#/clusters/${aws_eks_cluster.eks.name}"
+  value       = "https://${data.aws_caller_identity.current.account_id}.console.aws.amazon.com/eks/home?region=${data.aws_region.current.id}#/clusters/${aws_eks_cluster.eks.name}"
 }

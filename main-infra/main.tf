@@ -32,28 +32,32 @@ provider "aws" {
   region = var.aws_region
 }
 
-# Get EKS cluster data
-data "aws_eks_cluster" "eks" {
-  name = module.eks.cluster_name
-}
-
-data "aws_eks_cluster_auth" "eks" {
-  name = module.eks.cluster_name
-}
-
-# Configure Kubernetes provider
+# Configure Kubernetes provider (will be configured after EKS creation)
 provider "kubernetes" {
-  host                   = data.aws_eks_cluster.eks.endpoint
-  cluster_ca_certificate = base64decode(data.aws_eks_cluster.eks.certificate_authority[0].data)
-  token                  = data.aws_eks_cluster_auth.eks.token
+  host                   = try(data.aws_eks_cluster.eks[0].endpoint, "")
+  cluster_ca_certificate = try(base64decode(data.aws_eks_cluster.eks[0].certificate_authority[0].data), "")
+  token                  = try(data.aws_eks_cluster_auth.eks[0].token, "")
 }
 
 provider "helm" {
   kubernetes {
-    host                   = data.aws_eks_cluster.eks.endpoint
-    cluster_ca_certificate = base64decode(data.aws_eks_cluster.eks.certificate_authority[0].data)
-    token                  = data.aws_eks_cluster_auth.eks.token
+    host                   = try(data.aws_eks_cluster.eks[0].endpoint, "")
+    cluster_ca_certificate = try(base64decode(data.aws_eks_cluster.eks[0].certificate_authority[0].data), "")
+    token                  = try(data.aws_eks_cluster_auth.eks[0].token, "")
   }
+}
+
+# Get EKS cluster data (only when cluster exists)
+data "aws_eks_cluster" "eks" {
+  count      = var.enable_addons ? 1 : 0
+  name       = module.eks.cluster_name
+  depends_on = [module.eks]
+}
+
+data "aws_eks_cluster_auth" "eks" {
+  count      = var.enable_addons ? 1 : 0
+  name       = module.eks.cluster_name
+  depends_on = [module.eks]
 }
 
 module "vpc" {
@@ -80,13 +84,14 @@ module "eks" {
   source        = "../modules/eks"
   cluster_name  = "eks-cluster-demo"
   subnet_ids    = module.vpc.public_subnets
-  instance_type = "t2.micro"
+  instance_type = "t3.small"
   desired_size  = 1
   max_size      = 2
   min_size      = 1
 }
 
 module "jenkins" {
+  count             = var.enable_addons ? 1 : 0
   source            = "../modules/jenkins"
   cluster_name      = module.eks.cluster_name
   oidc_provider_arn = module.eks.oidc_provider_arn
@@ -94,13 +99,15 @@ module "jenkins" {
   kubeconfig        = ""
 
   providers = {
-    helm = helm
+    helm       = helm
+    kubernetes = kubernetes
   }
 
   depends_on = [module.eks]
 }
 
 module "argo_cd" {
+  count         = var.enable_addons ? 1 : 0
   source        = "../modules/argo_cd"
   name          = "argocd"
   namespace     = "argocd"
@@ -154,6 +161,7 @@ module "rds" {
 }
 
 module "monitoring" {
+  count  = var.enable_addons ? 1 : 0
   source = "../modules/monitoring"
 
   namespace                = "monitoring"

@@ -220,7 +220,7 @@ echo "======================"
 cd ../main-infra
 EKS_CONSOLE_URL=$(terraform output -raw eks_console_url 2>/dev/null || echo "EKS Console URL not available")
 CURRENT_USER=$(terraform output -raw current_user_arn 2>/dev/null || echo "Current user ARN not available")
-cd ../charts/django-app
+cd - > /dev/null  # Return to previous directory quietly
 
 echo "EKS Cluster Console: $EKS_CONSOLE_URL"
 echo "Current AWS User: $CURRENT_USER"

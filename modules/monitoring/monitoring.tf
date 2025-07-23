@@ -56,7 +56,7 @@ resource "helm_release" "prometheus" {
             cpu    = "500m"
           }
         }
-        grafana.ini = {
+        "grafana.ini" = {
           server = {
             root_url = "http://localhost:3000"
           }
