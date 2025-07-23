@@ -153,3 +153,23 @@ module "rds" {
   }
 }
 
+module "monitoring" {
+  source = "../modules/monitoring"
+
+  namespace                = "monitoring"
+  prometheus_chart_version = "51.2.0"
+  prometheus_storage_size  = "10Gi"
+  prometheus_retention     = "15d"
+  grafana_admin_password   = "admin123AWS"
+  grafana_storage_size     = "2Gi"
+
+  depends_on_modules = [module.eks]
+
+  providers = {
+    helm       = helm
+    kubernetes = kubernetes
+  }
+
+  depends_on = [module.eks]
+}
+
