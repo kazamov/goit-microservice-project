@@ -158,6 +158,11 @@ TARGET_NAMESPACE = "django-app"
    - Configure GitHub webhook in repository settings
    - Webhook URL: `http://<jenkins-hostname>/github-webhook/`
 
+### Build Result
+
+![Jenkins Successful Image Build](screenshots/jenkins%20successful%20image%20build.png)
+*Example of successful Jenkins pipeline execution showing Docker image build and ECR push*
+
 ## 🔄 Argo CD GitOps Configuration
 
 **Note:** If you used `./deploy.sh`, Argo CD is already configured with the Django application. The following steps are for manual configuration or troubleshooting.
@@ -212,6 +217,9 @@ The Django application is already configured in Argo CD with these settings:
    - Watch the application tree view update
    - Check for any error messages
    - Verify health status changes to "Healthy"
+
+![Argo CD Successful Sync](screenshots/argo%20cd%20successful%20sync.png)
+*Argo CD application successfully synchronized with health status showing all components running*
 
 ### Step 4: Automatic Sync Behavior
 
@@ -387,10 +395,18 @@ After successful deployment:
 - **Django Admin:** `http://<django-loadbalancer-hostname>/admin/`
 - **Health Check:** `http://<django-loadbalancer-hostname>/health/`
 
+![Running Django App](screenshots/running%20django%20app.png)
+*Django application successfully accessible via LoadBalancer with health check endpoint working*
+
 Get LoadBalancer hostname:
 ```bash
 kubectl get svc django-app-django -n django-app -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
 ```
+
+### Monitoring Dashboard Access
+
+![Grafana Prometheus Monitoring](screenshots/grafana%20prometheus%20monitoring.png)
+*Grafana monitoring dashboard showing comprehensive metrics for Django application and infrastructure*
 
 ## 🧹 Cleanup
 

@@ -95,6 +95,9 @@ Complete AWS microservice infrastructure with CI/CD, monitoring, and auto-scalin
   - Integration with Slack, email, PagerDuty
   - Smart alert grouping and routing
 
+![Grafana Prometheus Monitoring](screenshots/grafana%20prometheus%20monitoring.png)
+*Grafana dashboard showing comprehensive monitoring with Prometheus metrics*
+
 ### 🔧 Application Features
 - **Django Application**: Production-ready web application
   - Health checks and readiness probes
@@ -103,6 +106,9 @@ Complete AWS microservice infrastructure with CI/CD, monitoring, and auto-scalin
 - **Horizontal Pod Autoscaler**: Smart auto-scaling (2-6 pods)
 - **Persistent Storage**: Database data persistence
 - **Load Balancing**: Traffic distribution across pods
+
+![Running Django App](screenshots/running%20django%20app.png)
+*Django application successfully running in Kubernetes with LoadBalancer access*
 
 ### 🛡️ Security Features
 - **IAM Roles**: Least privilege access control
@@ -361,6 +367,14 @@ terraform destroy
 4. **Continuous Deployment** → Argo CD syncs changes to cluster
 5. **Health Monitoring** → Application health checks and rollback capabilities
 
+### Pipeline in Action
+
+![Jenkins Successful Image Build](screenshots/jenkins%20successful%20image%20build.png)
+*Jenkins CI/CD pipeline successfully building and pushing Docker images to ECR*
+
+![Argo CD Successful Sync](screenshots/argo%20cd%20successful%20sync.png)
+*Argo CD GitOps platform automatically syncing applications to Kubernetes cluster*
+
 ## 🚀 Getting Started
 
 1. **Clone the repository**
@@ -370,6 +384,22 @@ terraform destroy
 5. **Configure Jenkins** pipeline for your Django application
 6. **Set up Argo CD** GitOps workflow
 7. **Deploy your application** and enjoy automated CI/CD!
+
+## 📸 Project Screenshots
+
+### CI/CD Pipeline in Action
+![Jenkins Successful Image Build](screenshots/jenkins%20successful%20image%20build.png)
+*Jenkins CI/CD pipeline successfully building and pushing Docker images to Amazon ECR*
+
+![Argo CD Successful Sync](screenshots/argo%20cd%20successful%20sync.png)
+*Argo CD GitOps platform automatically synchronizing applications to Kubernetes cluster*
+
+### Application & Monitoring
+![Running Django App](screenshots/running%20django%20app.png)
+*Django application successfully deployed and accessible via AWS LoadBalancer*
+
+![Grafana Prometheus Monitoring](screenshots/grafana%20prometheus%20monitoring.png)
+*Comprehensive monitoring dashboard with Prometheus metrics and Grafana visualizations*
 ```
 
 #### Jenkins
