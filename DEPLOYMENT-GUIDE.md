@@ -1,294 +1,446 @@
 # Django Application Deployment Guide
 
-This guide explains how to deploy the Django application using both Jenkins CI/CD and Argo CD GitOps workflows.
+This guide explains how to deploy the complete infrastructure and Django application using Jenkins CI/CD pipeline and Argo CD GitOps workflow.
 
 ## 🚀 Deployment Overview
 
-The Django application can be deployed using two main approaches:
+The deployment process consists of three main stages:
 
-1. **Jenkins CI/CD Pipeline** - Traditional CI/CD with build, test, and deploy stages
-2. **Argo CD GitOps** - Declarative GitOps workflow with automatic synchronization
+1. **Infrastructure Deployment** - Deploy AWS infrastructure with CI/CD components
+2. **Jenkins CI/CD Pipeline** - Builds Docker images and pushes to ECR
+3. **Argo CD GitOps** - Deploys applications from Git repository
 
 ## 📋 Prerequisites
 
-- AWS EKS cluster deployed and configured
-- Jenkins installed with proper IAM roles for ECR access
-- Argo CD installed and configured
-- ECR repository created for Django application
-- RDS PostgreSQL database running
+- AWS CLI configured with appropriate permissions
+- Terraform >= 1.0
+- kubectl
+- Helm >= 3.0
+- Docker
+- GitHub repository with Django application code
 
-## 🔧 Jenkins CI/CD Pipeline
+## 🏗️ Infrastructure Deployment
 
-### Automatic Pipeline (Triggered by Git Push)
+### Quick Deployment
 
-The main CI/CD pipeline is located in `django_app/Jenkinsfile` and includes:
+For a complete one-command deployment of all infrastructure and CI/CD components:
 
-**Stages:**
-1. **Checkout & Setup** - Get source code and prepare environment
-2. **Build & Push Docker Image** - Build with Kaniko and push to ECR
-3. **Security Scan** - Security scanning (placeholder for tools like Trivy)
-4. **Deploy to Development** - Automatic deployment (GitOps or Direct)
-5. **Integration Tests** - Basic health checks and testing
-6. **Notify Deployment** - Deployment notifications
+```bash
+# Deploy complete infrastructure
+./deploy.sh
+```
 
-**Environment Variables:**
-- `ECR_REGISTRY`: ECR registry URL
-- `IMAGE_NAME`: Docker image name (django_app)
-- `IMAGE_TAG`: Generated tag (BUILD_NUMBER-GIT_COMMIT)
-- `AUTO_DEPLOY`: Automatic deployment (true for main branch)
-- `DEPLOYMENT_METHOD`: GitOps, Direct, or Manual
-- `TARGET_NAMESPACE`: Kubernetes namespace (django-app)
+This script will:
+1. Deploy backend infrastructure (S3 + DynamoDB for Terraform state)
+2. Deploy main infrastructure (VPC + EKS + RDS + ECR)
+3. Install Jenkins CI/CD platform
+4. Install Argo CD GitOps platform
+5. Install monitoring stack (Prometheus + Grafana)
+6. Deploy Django application with PostgreSQL
 
-**Triggers:**
-- Automatic: Git push to any branch
-- Main branch: Full CI/CD with deployment
-- Other branches: Build and test only
+### Manual Step-by-Step Deployment
 
-### Manual Deployment Pipeline
+```bash
+# 1. Deploy backend infrastructure
+cd infra-backend
+terraform init && terraform apply
 
-For manual deployments, use the dedicated pipeline in `jenkins/ManualDeploy.Jenkinsfile`:
+# 2. Deploy main infrastructure
+cd ../main-infra
+terraform init && terraform apply
 
-**Access:** 
-- Jenkins → Django Project → Manual Django Deployment
+# 3. Configure kubectl
+aws eks update-kubeconfig --region eu-central-1 --name eks-cluster-demo
+```
 
-**Parameters:**
-- `IMAGE_TAG`: Docker image tag to deploy (required)
-- `TARGET_NAMESPACE`: Kubernetes namespace (default: django-app)
-- `DEPLOYMENT_TYPE`: 
-  - **GitOps**: Updates Git repository for Argo CD sync
-  - **Direct**: Direct deployment using Helm
+### Validation
 
-**Use Cases:**
-- Deploy specific image tags
-- Rollback to previous versions
-- Deploy to different environments
-- Emergency deployments
+After deployment, validate that everything is working:
 
-## 🔄 Argo CD GitOps Workflow
+```bash
+# Comprehensive validation of all components
+./validate.sh
+```
 
-### Automatic GitOps Deployment
+This will check:
+- Infrastructure components (VPC, EKS, RDS, ECR)
+- CI/CD services (Jenkins, Argo CD)
+- Monitoring stack (Prometheus, Grafana)
+- Django application health and connectivity
 
-Argo CD continuously monitors the Git repository and automatically deploys changes:
+## 🔧 Jenkins Build Job Configuration
 
-**Repository:** `https://github.com/kazamov/goit-microservice-project.git`
-**Path:** `charts/django-app`
-**Branch:** `final-project`
+**Note:** If you used `./deploy.sh`, Jenkins is already configured with a basic pipeline. The following steps are for custom configuration.
+
+### Step 1: Access Jenkins
+
+1. **Get Jenkins URL:**
+   ```bash
+   kubectl get svc -n jenkins jenkins -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+   ```
+
+2. **Access Jenkins UI:**
+   ```
+   http://<jenkins-loadbalancer-hostname>
+   Username: admin
+   Password: admin123
+   ```
+
+### Step 2: Create Jenkins Pipeline Job
+
+1. **Create New Job:**
+   - Click "New Item"
+   - Enter job name: `django-app-pipeline`
+   - Select "Pipeline"
+   - Click "OK"
+
+2. **Configure Pipeline:**
+   - In "Pipeline" section, select "Pipeline script from SCM"
+   - SCM: Git
+   - Repository URL: `https://github.com/kazamov/goit-microservice-project.git`
+   - Branch: `*/final-project`
+   - Script Path: `django_app/Jenkinsfile`
+
+3. **Configure GitHub Credentials:**
+   - Go to "Manage Jenkins" → "Manage Credentials"
+   - Add credential:
+     - Kind: Username with password
+     - ID: `github-token`
+     - Username: Your GitHub username
+     - Password: Your GitHub Personal Access Token
+
+### Step 3: Jenkins Pipeline Stages
+
+The pipeline (`django_app/Jenkinsfile`) includes these stages:
+
+**1. Checkout & Setup**
+- Gets Git commit hash for unique image tagging
+- Sets build configuration variables
+
+**2. Build & Push Docker Image**
+- Uses Kaniko to build Django Docker image
+- Tags image with: `{BUILD_NUMBER}-{GIT_COMMIT_SHORT}`
+- Pushes to ECR repository: `127214174194.dkr.ecr.eu-central-1.amazonaws.com/django_app`
+
+**3. Security Scan (Optional)**
+- Placeholder for security scanning tools
+- Only runs on main branch
+
+**4. Deploy to Development**
+- **GitOps Mode**: Updates `charts/django-app/values.yaml` in Git
+- **Direct Mode**: Deploys directly using Helm
+- Only runs for main branch with AUTO_DEPLOY=true
+
+**5. Integration Tests**
+- Waits for deployment readiness
+- Performs basic health checks
+
+### Step 4: Pipeline Environment Variables
+
+Key variables in the Jenkinsfile:
+
+```groovy
+ECR_REGISTRY = "127214174194.dkr.ecr.eu-central-1.amazonaws.com"
+IMAGE_NAME   = "django_app"
+IMAGE_TAG    = "${env.BUILD_NUMBER}-${env.GIT_COMMIT.take(7)}"
+AUTO_DEPLOY  = "${env.BRANCH_NAME == 'main' ? 'true' : 'false'}"
+DEPLOYMENT_METHOD = "GitOps"  // Options: GitOps, Direct, Manual
+TARGET_NAMESPACE = "django-app"
+```
+
+### Step 5: Trigger Build
+
+1. **Manual Trigger:**
+   - Go to your Jenkins job
+   - Click "Build Now"
+
+2. **Automatic Trigger (Optional):**
+   - Configure GitHub webhook in repository settings
+   - Webhook URL: `http://<jenkins-hostname>/github-webhook/`
+
+## 🔄 Argo CD GitOps Configuration
+
+**Note:** If you used `./deploy.sh`, Argo CD is already configured with the Django application. The following steps are for manual configuration or troubleshooting.
+
+### Step 1: Access Argo CD
+
+1. **Port Forward to Argo CD:**
+   ```bash
+   kubectl port-forward svc/argocd-server 8080:443 -n argocd
+   ```
+
+2. **Access UI:**
+   ```
+   https://localhost:8080
+   Username: admin
+   Password: $(kubectl get secret -n argocd argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d)
+   ```
+
+### Step 2: Django Application Sync
+
+The Django application is already configured in Argo CD with these settings:
+
+**Application Configuration:**
+- **Name:** django-app
+- **Project:** default
+- **Source Repository:** https://github.com/kazamov/goit-microservice-project.git
+- **Path:** charts/django-app
+- **Target Branch:** final-project
+- **Destination Cluster:** in-cluster
+- **Namespace:** django-app
 
 **Sync Policy:**
-- **Automated:** True (automatic sync enabled)
-- **Prune:** True (remove resources not in Git)
-- **Self Heal:** True (fix configuration drift)
-- **Create Namespace:** True (auto-create target namespace)
+- **Automated Sync:** Enabled
+- **Prune Resources:** Enabled (removes resources not in Git)
+- **Self Heal:** Enabled (corrects configuration drift)
+- **Create Namespace:** Enabled
 
-**Access Argo CD UI:**
-```bash
-kubectl port-forward svc/argocd-server 8081:443 -n argocd
-# Open: https://localhost:8081
-```
+### Step 3: Manual Sync Process
 
-### GitOps Workflow Process
+1. **Access Application:**
+   - In Argo CD UI, click on "django-app" application
 
-1. **Code Push** → Jenkins builds new image
-2. **Image Tag Update** → Jenkins updates `values.yaml` in Git
-3. **Argo CD Sync** → Argo CD detects changes and deploys
-4. **Health Check** → Argo CD monitors application health
+2. **Trigger Sync:**
+   - Click "SYNC" button
+   - Configure sync options if needed:
+     - **Prune:** Remove resources not in Git
+     - **Dry Run:** Preview changes only
+     - **Force:** Override certain protections
+   - Click "SYNCHRONIZE"
 
-## 🛠️ Deployment Methods Comparison
+3. **Monitor Sync Progress:**
+   - Watch the application tree view update
+   - Check for any error messages
+   - Verify health status changes to "Healthy"
 
-| Method | Use Case | Speed | Rollback | Audit Trail | GitOps |
-|--------|----------|-------|----------|-------------|---------|
-| **Jenkins Direct** | Quick deploys, testing | Fast | Manual | Limited | ❌ |
-| **Jenkins GitOps** | Production, compliance | Medium | Git-based | Full | ✅ |
-| **Argo CD Auto** | Continuous deployment | Medium | Git-based | Full | ✅ |
-| **Manual Deploy** | Specific versions | Fast | Manual | Limited | Optional |
+### Step 4: Automatic Sync Behavior
 
-## 📝 Configuration Files
+When Jenkins updates `charts/django-app/values.yaml`:
 
-### Django Helm Chart (`charts/django-app/`)
+1. **Git Commit** → Jenkins pushes new image tag to values.yaml
+2. **Argo CD Detection** → Detects repository changes (within 3 minutes)
+3. **Automatic Sync** → Applies changes to Kubernetes cluster
+4. **Health Check** → Monitors pod health and readiness
 
-**Key Configuration Files:**
-- `values.yaml` - Application configuration
-- `templates/deployment.yaml` - Kubernetes deployment
-- `templates/service.yaml` - Kubernetes service
-- `templates/hpa.yaml` - Horizontal Pod Autoscaler
+## 🔄 Complete Deployment Workflow
 
-**Important Values:**
-```yaml
-image:
-  repository: 127214174194.dkr.ecr.eu-central-1.amazonaws.com/django_app
-  tag: latest  # Updated by Jenkins CI/CD
+### Development Workflow
 
-autoscaler:
-  enabled: true
-  minReplicas: 2
-  maxReplicas: 6
+1. **Code Changes:**
+   ```bash
+   git checkout -b feature/new-feature
+   # Make changes to Django app
+   git commit -m "Add new feature"
+   git push origin feature/new-feature
+   ```
 
-config:
-  POSTGRES_HOST: "myapp-db.czug8wokie9j.eu-central-1.rds.amazonaws.com"
-  DJANGO_DEBUG: "False"
-```
+2. **Jenkins Build:**
+   - Jenkins automatically builds image for feature branch
+   - Image tagged but not deployed (AUTO_DEPLOY=false)
 
-### Jenkins Configuration (`modules/jenkins/`)
+3. **Manual Testing:**
+   - Use Manual Deploy pipeline in Jenkins if needed
+   - Test specific image tags in development environment
 
-**Service Account Permissions:**
-- ECR push/pull access
-- Kubernetes deployment access
-- Git repository access
+4. **Merge to Main:**
+   ```bash
+   git checkout main
+   git merge feature/new-feature
+   git push origin main
+   ```
 
-**Plugins Installed:**
-- Kubernetes plugin for pod agents
-- GitHub integration
-- Docker workflow
-- Pipeline plugins
-- Blue Ocean UI
+5. **Automatic Deployment:**
+   - Jenkins builds image with main branch tag
+   - Updates values.yaml with new image tag
+   - Argo CD automatically syncs and deploys
 
-## 🚦 Deployment Workflows
+### Production Deployment
 
-### Scenario 1: Feature Development
-```
-1. Create feature branch
-2. Push code → Jenkins builds image
-3. Use Manual Deploy for testing
-4. Merge to main → Auto-deploy via GitOps
-```
+1. **Tag Release:**
+   ```bash
+   git tag -a v1.0.0 -m "Release version 1.0.0"
+   git push origin v1.0.0
+   ```
 
-### Scenario 2: Production Release
-```
-1. Tag release in Git
-2. Jenkins builds tagged image
-3. Update values.yaml with tag
-4. Argo CD deploys automatically
-5. Monitor via Grafana/Prometheus
-```
+2. **Jenkins Build:**
+   - Builds image with version tag
+   - Updates production values.yaml
 
-### Scenario 3: Hotfix Deployment
-```
-1. Use Manual Deploy pipeline
-2. Specify exact image tag
-3. Choose Direct deployment for speed
-4. Update Git repo afterward
-```
+3. **Argo CD Sync:**
+   - Automatically deploys tagged version
+   - Monitors application health
 
-### Scenario 4: Rollback
-```
-1. Identify last good image tag
-2. Use Manual Deploy with previous tag
-3. Or revert Git commit (for GitOps)
-```
+### Rollback Process
+
+1. **Identify Last Good Version:**
+   ```bash
+   # Check Git history
+   git log --oneline charts/django-app/values.yaml
+   
+   # Check Argo CD sync history in UI
+   ```
+
+2. **Rollback Options:**
+   
+   **Option A - Git Revert:**
+   ```bash
+   git revert <commit-hash>
+   git push origin main
+   # Argo CD will automatically sync the revert
+   ```
+   
+   **Option B - Manual Deploy:**
+   - Use Jenkins Manual Deploy pipeline
+   - Specify previous working image tag
+   - Choose Direct deployment for speed
+
+3. **Verify Rollback:**
+   - Check Argo CD application status
+   - Verify application health and functionality
 
 ## 🔍 Monitoring and Troubleshooting
 
-### Application Status
-```bash
-# Check deployment status
-kubectl get deployments -n django-app
+### Check Deployment Status
 
-# Check pods
+```bash
+# Check Django pods
 kubectl get pods -n django-app
 
-# Check service
-kubectl get service django-app-django -n django-app
+# Check service and LoadBalancer
+kubectl get svc -n django-app
 
-# Check logs
+# Check application logs
 kubectl logs -f deployment/django-app-django -n django-app
+
+# Check events
+kubectl get events -n django-app --sort-by='.lastTimestamp'
 ```
 
-### Jenkins Pipeline Status
-- Access Jenkins UI: `http://jenkins-lb-hostname`
-- Check Blue Ocean for visual pipeline status
-- Monitor build logs and artifacts
+### Jenkins Pipeline Issues
 
-### Argo CD Application Status
-- Access Argo CD UI: `https://localhost:8081`
-- Monitor sync status and health
-- View application topology
+1. **Build Failures:**
+   - Check Jenkins build logs
+   - Verify ECR permissions and image repository
+   - Check GitHub credentials
 
-### Common Issues and Solutions
+2. **Image Push Issues:**
+   - Verify IAM roles for Jenkins service account
+   - Check ECR repository permissions
 
-**Image Pull Errors:**
-```bash
-# Check ECR credentials
-kubectl describe pod <pod-name> -n django-app
+### Argo CD Sync Issues
 
-# Verify image exists
-aws ecr describe-images --repository-name django_app
-```
+1. **Sync Failures:**
+   - Check Argo CD application logs
+   - Verify Git repository access
+   - Check Helm chart syntax
+
+2. **Health Check Failures:**
+   - Verify pod readiness and liveness probes
+   - Check service and ingress configurations
+   - Review application logs
+
+### Common Solutions
 
 **Database Connection Issues:**
 ```bash
-# Check RDS status
-aws rds describe-db-instances --db-instance-identifier myapp-db
-
-# Test connectivity from pod
-kubectl exec -it <pod-name> -n django-app -- curl -v telnet://myapp-db.czug8wokie9j.eu-central-1.rds.amazonaws.com:5432
+# Test database connectivity
+kubectl exec -it <pod-name> -n django-app -- python manage.py shell -c "
+from django.db import connection
+cursor = connection.cursor()
+cursor.execute('SELECT 1')
+print('Database connected successfully')
+"
 ```
 
-**Argo CD Sync Issues:**
+**Port Configuration Issues:**
 ```bash
-# Force sync
-argocd app sync django-app
+# Check service configuration
+kubectl describe svc django-app-django -n django-app
 
-# Check sync status
-argocd app get django-app
+# Verify container ports match service targetPort
+kubectl describe deployment django-app-django -n django-app
 ```
 
-## 🔐 Security Considerations
+## 🔐 Security and Best Practices
 
-### Secrets Management
-- Database credentials stored in Helm values (consider using Kubernetes secrets)
-- GitHub tokens stored in Jenkins credentials
-- ECR access via IAM roles (no hardcoded credentials)
+### Security Configuration
 
-### Network Security
-- RDS in private subnets (publicly accessible for demo)
-- Security groups restrict database access
-- LoadBalancer services for controlled external access
+1. **IAM Roles:** Jenkins uses IRSA for ECR access (no hardcoded credentials)
+2. **GitHub Access:** Personal Access Token stored in Jenkins credentials
+3. **Database:** Connection details in Helm values (consider Kubernetes secrets)
+4. **Container Security:** Non-root user, minimal base image
 
-### Image Security
-- Kaniko builds without Docker daemon
-- ECR image scanning enabled
-- Base images from trusted sources
+### Best Practices
 
-## 📈 Scaling and Performance
+1. **GitOps First:** Use GitOps for all production deployments
+2. **Immutable Tags:** Tag releases with semantic versioning
+3. **Resource Limits:** Always set CPU/memory requests and limits
+4. **Health Checks:** Implement proper readiness and liveness probes
+5. **Monitoring:** Monitor application metrics and logs
+6. **Backup:** Regular database backups and cluster state backups
 
-### Horizontal Pod Autoscaler
-- CPU-based scaling (70% threshold)
-- Memory-based scaling (80% threshold)
-- Min replicas: 2, Max replicas: 6
+## 📊 Application Access
 
-### Resource Management
-- CPU requests: 100m, limits: 500m
-- Memory requests: 128Mi, limits: 512Mi
-- Adjust based on load testing results
+After successful deployment:
 
-### Database Performance
-- RDS PostgreSQL with appropriate instance class
-- Connection pooling in Django settings
-- Monitor via CloudWatch metrics
+- **Django Application:** `http://<django-loadbalancer-hostname>/`
+- **Django Admin:** `http://<django-loadbalancer-hostname>/admin/`
+- **Health Check:** `http://<django-loadbalancer-hostname>/health/`
 
-## 🎯 Best Practices
+Get LoadBalancer hostname:
+```bash
+kubectl get svc django-app-django -n django-app -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+```
 
-1. **Use GitOps for Production** - Ensures auditability and consistency
-2. **Tag Releases** - Use semantic versioning for image tags
-3. **Test Before Merge** - Use feature branches and testing
-4. **Monitor Deployments** - Use Grafana dashboards for monitoring
-5. **Implement Health Checks** - Proper liveness and readiness probes
-6. **Secure Secrets** - Use Kubernetes secrets for sensitive data
-7. **Resource Limits** - Always set appropriate resource requests/limits
-8. **Backup Strategy** - Regular RDS backups and cluster backups
+## 🧹 Cleanup
 
-## 🔗 Useful Links
+When you're finished with the infrastructure and want to remove all resources:
 
-- **Jenkins UI:** `http://jenkins-lb-hostname`
-- **Argo CD UI:** `https://localhost:8081` (port-forward required)
-- **Grafana:** `http://localhost:3000` (port-forward required)
-- **Django App:** `http://django-lb-hostname/admin/`
-- **GitHub Repository:** `https://github.com/kazamov/goit-microservice-project`
+### Complete Cleanup
 
-## 📞 Support
+```bash
+# Remove all infrastructure and applications
+./cleanup.sh
+```
 
-For issues and questions:
-1. Check Jenkins build logs
-2. Review Argo CD sync status
-3. Examine Kubernetes events: `kubectl get events -n django-app`
-4. Check application logs: `kubectl logs -f deployment/django-app-django -n django-app`
+This script will safely:
+1. Remove Django application from Kubernetes
+2. Delete Argo CD applications and configurations
+3. Remove Jenkins and its persistent volumes
+4. Clean up monitoring stack
+5. Destroy main infrastructure (EKS, RDS, VPC, etc.)
+6. Destroy backend infrastructure (S3 bucket, DynamoDB table)
+
+### Manual Cleanup
+
+If you prefer manual cleanup or need to troubleshoot:
+
+```bash
+# 1. Remove applications first
+helm uninstall django-app -n django-app || true
+kubectl delete namespace django-app || true
+
+# 2. Remove CI/CD and monitoring
+helm uninstall jenkins -n jenkins || true
+helm uninstall argocd -n argocd || true
+helm uninstall prometheus -n monitoring || true
+
+# 3. Destroy main infrastructure
+cd main-infra
+terraform destroy
+
+# 4. Destroy backend infrastructure (optional)
+cd ../infra-backend
+terraform destroy
+```
+
+### Validation After Cleanup
+
+```bash
+# Verify all resources are removed
+./validate.sh --cleanup-mode
+```
+
+**Note:** The cleanup process is designed to be safe and will prompt for confirmation before destroying resources. Always backup any important data before running cleanup operations.
+
+

@@ -2,18 +2,20 @@
 
 Complete AWS microservice infrastructure with CI/CD, monitoring, and auto-scaling capabilities. This project implements a production-ready Kubernetes environment on AWS using Infrastructure as Code principles.
 
-## 🏗️ Final Project Structure
+## 🏗️ Project Structure
 
 ```
-├── FINAL-PROJECT-INSTRUCTIONS.md  # Complete step-by-step guide
-├── deploy-final-project.sh         # Full infrastructure deployment
-├── validate-final-project.sh       # Comprehensive validation script
-├── cleanup-final-project.sh        # Safe cleanup of all resources
-├── deploy-backend.sh               # Backend infrastructure only
-├── deploy-main.sh                  # Main infrastructure only
+├── DEPLOYMENT-GUIDE.md            # Complete deployment and configuration guide
+├── deploy.sh                      # Complete infrastructure deployment
+├── validate.sh                    # Comprehensive validation script
+├── cleanup.sh                     # Safe cleanup of all resources
 ├── infra-backend/                  # S3 + DynamoDB for Terraform state
 ├── main-infra/                     # VPC + EKS + RDS + ECR + Services
 ├── django_app/                     # Django application with Dockerfile
+│   ├── Dockerfile                  # Container build configuration
+│   └── Jenkinsfile                 # CI/CD pipeline definition
+├── jenkins/                        # Jenkins configuration
+│   └── ManualDeploy.Jenkinsfile    # Manual deployment pipeline
 ├── charts/django-app/              # Helm chart for Django deployment
 └── modules/                        # Reusable Terraform modules
     ├── vpc/                        # Virtual Private Cloud
@@ -26,7 +28,7 @@ Complete AWS microservice infrastructure with CI/CD, monitoring, and auto-scalin
     └── s3-backend/                 # S3 backend storage
 ```
 
-## 🎯 Final Project Architecture
+## 🎯 Architecture Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────┐
@@ -136,13 +138,15 @@ Complete AWS microservice infrastructure with CI/CD, monitoring, and auto-scalin
 - Helm >= 3.0
 - Docker
 
-### One-Command Deployment
+### Deployment Options
+
+#### Option 1: Complete Infrastructure Deployment
 ```bash
-# Deploy entire infrastructure
-./deploy-final-project.sh
+# Deploy complete infrastructure with CI/CD, monitoring, and Django app
+./deploy.sh
 ```
 
-### Manual Step-by-Step Deployment
+#### Option 2: Manual Step-by-Step Deployment
 ```bash
 # 1. Deploy backend infrastructure
 cd infra-backend
@@ -154,27 +158,26 @@ terraform init && terraform apply
 
 # 3. Configure kubectl
 aws eks update-kubeconfig --region eu-central-1 --name eks-cluster-demo
-
-# 4. Build and push application
-cd ../django_app
-./build-and-push.sh
-
-# 5. Deploy application
-cd ../charts/django-app
-helm install django-app .
 ```
 
-### Validation
+#### Validation
 ```bash
-# Comprehensive validation
-./validate-final-project.sh
+# Validate complete deployment
+./validate.sh
 ```
 
-### Cleanup
-```bash
-# Remove all resources
-./cleanup-final-project.sh
-```
+## 📖 Documentation
+
+### Complete Deployment Guide
+For detailed step-by-step instructions on configuring Jenkins build jobs and Argo CD sync:
+
+📋 **[DEPLOYMENT-GUIDE.md](DEPLOYMENT-GUIDE.md)** - Complete deployment and configuration guide
+
+This comprehensive guide covers:
+- Jenkins CI/CD pipeline configuration
+- Argo CD GitOps setup and sync process
+- Manual deployment procedures
+- Troubleshooting and monitoring
 
 ## 🔧 Service Access
 
@@ -238,13 +241,135 @@ kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.pas
 
 #### Django Application
 ```bash
+#### Django Application
+```bash
 # Get LoadBalancer URL
-kubectl get service django-app -n django-app
+kubectl get service django-app-django -n django-app
 
 # Test endpoints
 curl http://<loadbalancer-url>/          # Root endpoint
 curl http://<loadbalancer-url>/health/   # Health check with DB status
 curl http://<loadbalancer-url>/admin/    # Django admin
+```
+
+#### Argo CD
+```bash
+# Get Argo CD URL
+kubectl get service argocd-server -n argocd
+
+# Get admin password
+kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath='{.data.password}' | base64 -d
+```
+
+## 🧹 Cleanup
+
+When you're finished with the infrastructure, you can clean it up safely:
+
+```bash
+# Remove all resources (infrastructure and applications)
+./cleanup.sh
+```
+
+Or manually:
+```bash
+# Destroy main infrastructure first
+cd main-infra
+terraform destroy
+
+# Then destroy backend if needed
+cd ../infra-backend
+terraform destroy
+```
+
+## Key Benefits
+
+✅ **Automated CI/CD**: Complete Jenkins and Argo CD pipeline  
+✅ **GitOps Workflow**: Declarative deployments from Git  
+✅ **Production Ready**: Auto-scaling, health checks, monitoring  
+✅ **Secure by Default**: Encrypted storage, private subnets, IAM roles  
+✅ **Infrastructure as Code**: Complete Terraform automation  
+
+## 📚 Documentation
+
+### Core Documentation
+- **[DEPLOYMENT-GUIDE.md](DEPLOYMENT-GUIDE.md)** - Complete deployment and configuration guide
+- [Backend Infrastructure](./infra-backend/README.md) - S3 + DynamoDB setup
+- [Main Infrastructure](./main-infra/README.md) - VPC + EKS + ECR setup
+
+### Module Documentation
+
+| Module | Purpose | Documentation |
+|--------|---------|---------------|
+| **[S3 Backend](./modules/s3-backend/README.md)** | Remote state storage and locking | Complete setup guide, security considerations |
+| **[VPC](./modules/vpc/README.md)** | Network infrastructure and subnets | Architecture diagrams, use cases, NAT Gateway options |
+| **[ECR](./modules/ecr/README.md)** | Container registry with security | Docker integration, lifecycle policies |
+| **[EKS](./modules/eks/README.md)** | Kubernetes cluster management | Cluster setup, node groups, auto-scaling configuration |
+| **[RDS](./modules/rds/README.md)** | Universal RDS/Aurora database module | Aurora and Standard RDS support, parameter groups, security |
+| **[Jenkins](./modules/jenkins/README.md)** | CI/CD automation platform | Pipeline configuration, plugins, security |
+| **[Argo CD](./modules/argo_cd/README.md)** | GitOps continuous deployment | Application management, sync policies |
+| **[Monitoring](./modules/monitoring/README.md)** | Prometheus and Grafana stack | Metrics, dashboards, alerting |
+
+## ⚙️ Configuration
+
+### Key Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `aws_region` | AWS region for resources | `eu-central-1` |
+| `bucket_name` | S3 bucket for state (must be unique) | `terraform-state-bucket-127214174194` |
+| `table_name` | DynamoDB table for state locking | `terraform-locks` |
+| `vpc_cidr_block` | VPC CIDR block | `10.0.0.0/16` |
+| `cluster_name` | EKS cluster name | `eks-cluster-demo` |
+
+## 🔐 Security Features
+
+- ✅ **State Security**: Encrypted S3 storage with DynamoDB locking
+- ✅ **Network Security**: Public/private subnet separation with NAT Gateway
+- ✅ **Container Security**: ECR vulnerability scanning and lifecycle policies
+- ✅ **Kubernetes Security**: EKS IAM integration and RBAC
+- ✅ **CI/CD Security**: IRSA for service accounts, secret management
+- ✅ **Access Control**: S3 bucket public access blocked by default
+
+## 🎯 CI/CD Pipeline
+
+### Pipeline Architecture
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Git Commit    │───▶│    Jenkins      │───▶│   Amazon ECR    │───▶│    Argo CD      │
+│                 │    │                 │    │                 │    │                 │
+│ • Source Code   │    │ • Build Image   │    │ • Store Image   │    │ • Deploy App    │
+│ • Jenkinsfile   │    │ • Push to ECR   │    │ • Tagged Images │    │ • Auto Sync     │
+│ • Dockerfile    │    │ • Update Chart  │    │ • Latest Tag    │    │ • Health Check  │
+└─────────────────┘    └─────────────────┘    └─────────────────┘    └─────────────────┘
+                                │                                               │
+                                ▼                                               ▼
+                       ┌─────────────────┐                            ┌─────────────────┐
+                       │  Git Repository │◄───────────────────────────│  EKS Cluster    │
+                       │                 │                            │                 │
+                       │ • Helm Charts   │                            │ • Django Pods   │
+                       │ • Updated Tags  │                            │ • PostgreSQL    │
+                       │ • values.yaml   │                            │ • Services      │
+                       └─────────────────┘                            └─────────────────┘
+```
+
+### Pipeline Features
+
+1. **Automated Builds** → Jenkins builds Docker images on every commit
+2. **Container Registry** → Images pushed to AWS ECR with unique tags
+3. **GitOps Updates** → Helm chart values automatically updated
+4. **Continuous Deployment** → Argo CD syncs changes to cluster
+5. **Health Monitoring** → Application health checks and rollback capabilities
+
+## 🚀 Getting Started
+
+1. **Clone the repository**
+2. **Review [DEPLOYMENT-GUIDE.md](DEPLOYMENT-GUIDE.md)** for detailed instructions
+3. **Deploy infrastructure** with `./deploy.sh`
+4. **Validate deployment** with `./validate.sh`
+5. **Configure Jenkins** pipeline for your Django application
+6. **Set up Argo CD** GitOps workflow
+7. **Deploy your application** and enjoy automated CI/CD!
 ```
 
 #### Jenkins

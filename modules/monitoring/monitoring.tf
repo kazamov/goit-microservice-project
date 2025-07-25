@@ -120,14 +120,19 @@ metadata:
   namespace: ${var.namespace}
   labels:
     app: django-app
+    release: prometheus
 spec:
+  namespaceSelector:
+    matchNames:
+    - default
   selector:
     matchLabels:
-      app: django-app
+      app.kubernetes.io/name: django-app-django
   endpoints:
-  - port: http
+  - port: metrics
     path: /metrics
     interval: 30s
+    scrapeTimeout: 10s
 YAML
     EOF
   }

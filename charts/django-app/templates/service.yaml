@@ -2,10 +2,17 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ .Release.Name }}-django
+  labels:
+    app: {{ .Release.Name }}-django
+    app.kubernetes.io/name: {{ .Release.Name }}-django
 spec:
   type: {{ .Values.service.type }}
   selector:
     app: {{ .Release.Name }}-django
   ports:
-    - port: 80
+    - name: http
+      port: 80
+      targetPort: {{ .Values.service.targetPort }}
+    - name: metrics
+      port: 8000
       targetPort: {{ .Values.service.targetPort }}
