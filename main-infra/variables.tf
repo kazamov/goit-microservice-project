@@ -82,12 +82,6 @@ variable "encryption_configuration" {
   }
 }
 
-variable "enable_addons" {
-  description = "Enable addons that depend on EKS cluster (Jenkins, ArgoCD, Monitoring)"
-  type        = bool
-  default     = true
-}
-
 variable "tags" {
   description = "Common tags to apply to all resources"
   type        = map(string)

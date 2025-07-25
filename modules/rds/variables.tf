@@ -106,6 +106,12 @@ variable "backup_retention_period" {
   default     = 7
 }
 
+variable "skip_final_snapshot" {
+  description = "Determines whether a final DB snapshot is created before the DB instance is deleted"
+  type        = bool
+  default     = false
+}
+
 variable "tags" {
   description = "A map of tags to assign to the resource"
   type        = map(string)

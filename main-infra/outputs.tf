@@ -88,11 +88,11 @@ output "current_user_arn" {
 }
 
 output "jenkins_release" {
-  value = var.enable_addons && length(module.jenkins) > 0 ? module.jenkins[0].jenkins_release_name : null
+  value = try(module.jenkins.jenkins_release_name, null)
 }
 
 output "jenkins_namespace" {
-  value = var.enable_addons && length(module.jenkins) > 0 ? module.jenkins[0].jenkins_namespace : null
+  value = try(module.jenkins.jenkins_namespace, null)
 }
 
 # RDS Outputs

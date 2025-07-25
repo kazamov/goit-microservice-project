@@ -225,6 +225,7 @@ parameters = {
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
 | `backup_retention_period` | `number` | `7` | Backup retention period (days) |
+| `skip_final_snapshot` | `bool` | `false` | Determines whether a final DB snapshot is created before the DB instance is deleted. Set to `true` for development environments to enable quick cleanup without snapshot creation delays. |
 | `tags` | `map(string)` | `{}` | Tags for resources |
 
 ## Outputs

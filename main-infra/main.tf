@@ -32,30 +32,23 @@ provider "aws" {
   region = var.aws_region
 }
 
-# Configure Kubernetes provider conditionally - only when cluster exists
+# Configure Kubernetes provider with safe defaults
 provider "kubernetes" {
-  host                   = var.enable_addons ? module.eks.cluster_endpoint : null
-  cluster_ca_certificate = var.enable_addons ? base64decode(module.eks.cluster_certificate_authority_data) : null
-  token                  = var.enable_addons ? data.aws_eks_cluster_auth.eks[0].token : null
+  host                   = try(module.eks.cluster_endpoint, "")
+  cluster_ca_certificate = try(base64decode(module.eks.cluster_certificate_authority_data), "")
+  token                  = try(data.aws_eks_cluster_auth.eks.token, "")
 }
 
 provider "helm" {
   kubernetes {
-    host                   = var.enable_addons ? module.eks.cluster_endpoint : null
-    cluster_ca_certificate = var.enable_addons ? base64decode(module.eks.cluster_certificate_authority_data) : null
-    token                  = var.enable_addons ? data.aws_eks_cluster_auth.eks[0].token : null
+    host                   = try(module.eks.cluster_endpoint, "")
+    cluster_ca_certificate = try(base64decode(module.eks.cluster_certificate_authority_data), "")
+    token                  = try(data.aws_eks_cluster_auth.eks.token, "")
   }
 }
 
-# Get EKS cluster data (only when cluster exists)
-data "aws_eks_cluster" "eks" {
-  count      = var.enable_addons ? 1 : 0
-  name       = module.eks.cluster_name
-  depends_on = [module.eks]
-}
-
+# Get EKS cluster auth token
 data "aws_eks_cluster_auth" "eks" {
-  count      = var.enable_addons ? 1 : 0
   name       = module.eks.cluster_name
   depends_on = [module.eks]
 }
@@ -92,7 +85,6 @@ module "eks" {
 }
 
 module "jenkins" {
-  count             = var.enable_addons ? 1 : 0
   source            = "../modules/jenkins"
   cluster_name      = module.eks.cluster_name
   oidc_provider_arn = module.eks.oidc_provider_arn
@@ -108,7 +100,6 @@ module "jenkins" {
 }
 
 module "argo_cd" {
-  count         = var.enable_addons ? 1 : 0
   source        = "../modules/argo_cd"
   name          = "argocd"
   namespace     = "argocd"
@@ -144,7 +135,7 @@ module "rds" {
   publicly_accessible = true
 
   # Instance configuration
-  instance_class          = "db.t3.medium"
+  instance_class          = "db.t3.small"
   allocated_storage       = 20
   multi_az                = true
   backup_retention_period = 7
@@ -155,6 +146,9 @@ module "rds" {
     log_min_duration_statement = "500"
   }
 
+  # Snapshot configuration
+  skip_final_snapshot = true # Set to false for production
+
   tags = {
     Environment = "dev"
     Project     = "myapp"
@@ -162,7 +156,6 @@ module "rds" {
 }
 
 module "monitoring" {
-  count  = var.enable_addons ? 1 : 0
   source = "../modules/monitoring"
 
   namespace                = "monitoring"
