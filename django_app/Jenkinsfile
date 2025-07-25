@@ -75,8 +75,8 @@ spec:
             echo "🐳 Building and pushing Docker image..."
             sh '''
               /kaniko/executor \\
-                --context `pwd` \\
-                --dockerfile `pwd`/Dockerfile \\
+                --context `pwd`/django_app \\
+                --dockerfile `pwd`/django_app/Dockerfile \\
                 --destination=$ECR_REGISTRY/$IMAGE_NAME:$IMAGE_TAG \\
                 --destination=$ECR_REGISTRY/$IMAGE_NAME:latest \\
                 --cache=true \\

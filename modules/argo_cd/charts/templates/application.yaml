@@ -30,5 +30,11 @@ spec:
       prune: {{ .syncPolicy.automated.prune | default false }}
       selfHeal: {{ .syncPolicy.automated.selfHeal | default false }}
     {{- end }}
+    {{- if .syncPolicy.syncOptions }}
+    syncOptions:
+      {{- range .syncPolicy.syncOptions }}
+      - {{ . }}
+      {{- end }}
+    {{- end }}
   {{- end }}
 {{- end }}
