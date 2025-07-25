@@ -64,138 +64,7 @@ if [ "$confirmation" != "DELETE" ]; then
 fi
 
 echo
-print_step "1" "Cleaning Up Kubernetes Applications"
-echo "--------------------------------------------------"
-
-# Update kubeconfig if possible
-#AWS_REGION=$(aws configure get region || echo "eu-central-1")
-#if aws eks describe-cluster --name eks-cluster-demo --region $AWS_REGION &> /dev/null; then
-#    echo "Updating kubeconfig..."
-#    aws eks update-kubeconfig --region $AWS_REGION --name eks-cluster-demo || true
-#    
-#    # Delete Django application
-#    if helm list -n default | grep django-app &> /dev/null; then
-#        echo "Removing Django application..."
-#        helm uninstall django-app -n default || true
-#        print_success "Django application removed"
-#    else
-#        print_warning "Django application not found"
-#    fi
-#    
-#    # Delete PVCs to avoid stuck volumes
-#    echo "Cleaning up Persistent Volume Claims..."
-#    
-#    # Function to force delete PVCs with finalizer removal
-#    force_delete_pvcs() {
-#        local namespace=$1
-#        local pvcs=$(kubectl get pvc -n "$namespace" --no-headers 2>/dev/null | awk '{print $1}' || echo "")
-#        
-#        if [ -n "$pvcs" ]; then
-#            echo "  - Deleting PVCs in namespace $namespace..."
-#            
-#            # First attempt: normal deletion with timeout
-#            timeout 30 kubectl delete pvc --all -n "$namespace" --ignore-not-found=true --timeout=15s &>/dev/null || true
-#            
-#            # Wait briefly for normal deletion
-#            sleep 5
-#            
-#            # Check for stuck PVCs and force delete them
-#            local stuck_pvcs=$(kubectl get pvc -n "$namespace" --no-headers 2>/dev/null | awk '{print $1}' || echo "")
-#            if [ -n "$stuck_pvcs" ]; then
-#                echo "    Force deleting stuck PVCs in $namespace..."
-#                for pvc in $stuck_pvcs; do
-#                    # Remove finalizers to force deletion
-#                    kubectl patch pvc "$pvc" -n "$namespace" -p '{"metadata":{"finalizers":null}}' --type=merge &>/dev/null || true
-#                    # Force delete
-#                    kubectl delete pvc "$pvc" -n "$namespace" --force --grace-period=0 &>/dev/null || true
-#                done
-#            fi
-#            echo "    PVC cleanup for $namespace completed"
-#        fi
-#    }
-#    
-#    # Get all namespaces and clean PVCs from each
-#    echo "Getting all namespaces with PVCs..."
-#    all_namespaces=$(kubectl get namespaces --no-headers -o custom-columns=":metadata.name" 2>/dev/null || echo "")
-#    
-#    if [ -n "$all_namespaces" ]; then
-#        for ns in $all_namespaces; do
-#            # Skip system namespaces that we shouldn't touch
-#            if [[ "$ns" != "kube-system" && "$ns" != "kube-public" && "$ns" != "kube-node-lease" ]]; then
-#                force_delete_pvcs "$ns"
-#            fi
-#        done
-#    fi
-#    
-#    # Also target specific known problem PVCs by name pattern across all namespaces
-#    echo "Searching for specific problematic PVCs across all namespaces..."
-#    
-#    # Find PVCs with common problematic patterns
-#    problem_patterns=("alertmanager" "prometheus" "grafana" "django-app-postgresql")
-#    
-#    for pattern in "${problem_patterns[@]}"; do
-#        echo "  - Looking for PVCs matching pattern: $pattern"
-#        
-#        # Use timeout and collect output to avoid hanging
-#        if pvc_output=$(timeout 30 kubectl get pvc --all-namespaces --no-headers 2>/dev/null); then
-#            # Filter and process the results
-#            filtered_pvcs=$(echo "$pvc_output" | grep "$pattern" || echo "")
-#            if [ -n "$filtered_pvcs" ]; then
-#                # Process each line without while-read
-#                IFS=$'\n' read -rd '' -a pvc_lines <<< "$filtered_pvcs" || true
-#                for line in "${pvc_lines[@]}"; do
-#                    if [ -n "$line" ]; then
-#                        namespace=$(echo "$line" | awk '{print $1}')
-#                        pvc_name=$(echo "$line" | awk '{print $2}')
-#                        if [ -n "$namespace" ] && [ -n "$pvc_name" ]; then
-#                            echo "    Found problematic PVC: $pvc_name in namespace $namespace"
-#                            # Remove finalizers and force delete with timeout
-#                            timeout 15 kubectl patch pvc "$pvc_name" -n "$namespace" -p '{"metadata":{"finalizers":null}}' --type=merge &>/dev/null || true
-#                            timeout 15 kubectl delete pvc "$pvc_name" -n "$namespace" --force --grace-period=0 &>/dev/null || true
-#                            echo "    Force deleted: $pvc_name"
-#                        fi
-#                    fi
-#                done
-#            fi
-#        else
-#            echo "    Timeout or error getting PVCs for pattern: $pattern"
-#        fi
-#    done
-#    
-#    # Final aggressive cleanup - delete ALL PVCs in non-system namespaces
-#    echo "Final aggressive PVC cleanup..."
-#    
-#    # Get all PVCs with timeout and process without while-read loop
-#    if all_pvcs_output=$(timeout 30 kubectl get pvc --all-namespaces --no-headers 2>/dev/null); then
-#        if [ -n "$all_pvcs_output" ]; then
-#            # Process each line without while-read
-#            IFS=$'\n' read -rd '' -a all_pvc_lines <<< "$all_pvcs_output" || true
-#            for line in "${all_pvc_lines[@]}"; do
-#                if [ -n "$line" ]; then
-#                    namespace=$(echo "$line" | awk '{print $1}')
-#                    pvc_name=$(echo "$line" | awk '{print $2}')
-#                    if [[ "$namespace" != "kube-system" && "$namespace" != "kube-public" && "$namespace" != "kube-node-lease" ]] && [ -n "$pvc_name" ]; then
-#                        echo "  - Force deleting remaining PVC: $pvc_name in $namespace"
-#                        timeout 15 kubectl patch pvc "$pvc_name" -n "$namespace" -p '{"metadata":{"finalizers":null}}' --type=merge &>/dev/null || true
-#                        timeout 15 kubectl delete pvc "$pvc_name" -n "$namespace" --force --grace-period=0 &>/dev/null || true
-#                    fi
-#                fi
-#            done
-#        fi
-#    else
-#        echo "  Timeout or error getting all PVCs"
-#    fi
-#    
-#    print_success "Persistent Volume Claims cleanup completed"
-#    
-#    # Wait a moment for cleanup
-#    sleep 10
-#else
-#    print_warning "EKS cluster not found or not accessible"
-#fi
-
-echo
-print_step "2" "Cleaning ECR Images"
+print_step "1" "Cleaning ECR Images"
 echo "----------------------------------"
 
 # Clean up ECR repository images
@@ -219,7 +88,7 @@ else
 fi
 
 echo
-print_step "3" "Destroying Main Infrastructure"
+print_step "2" "Destroying Main Infrastructure"
 echo "----------------------------------------------"
 
 cd "$PROJECT_ROOT/main-infra"
@@ -263,7 +132,7 @@ else
 fi
 
 echo
-print_step "4" "Destroying Backend Infrastructure"
+print_step "3" "Destroying Backend Infrastructure"
 echo "------------------------------------------------"
 
 cd "$PROJECT_ROOT/infra-backend"
@@ -313,7 +182,7 @@ else
 fi
 
 echo
-print_step "5" "Cleaning Local Files"
+print_step "4" "Cleaning Local Files"
 echo "-----------------------------------"
 
 # Clean up Terraform files
@@ -328,7 +197,7 @@ find "$PROJECT_ROOT" -name "values.yaml.bak" -delete
 print_success "Local cleanup completed"
 
 echo
-print_step "6" "Verification"
+print_step "5" "Verification"
 echo "---------------------------"
 
 # Verify cleanup

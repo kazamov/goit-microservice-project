@@ -59,7 +59,7 @@ print_step "1" "Checking Prerequisites"
 echo "--------------------------------------"
 
 # Check required tools
-REQUIRED_TOOLS=("terraform" "aws" "kubectl" "helm" "docker")
+REQUIRED_TOOLS=("terraform" "aws" "kubectl")
 for tool in "${REQUIRED_TOOLS[@]}"; do
     if command -v $tool &> /dev/null; then
         print_success "$tool is available"
@@ -68,14 +68,6 @@ for tool in "${REQUIRED_TOOLS[@]}"; do
         exit 1
     fi
 done
-
-# Check if Docker is running
-if docker info &> /dev/null; then
-    print_success "Docker is running"
-else
-    print_error "Docker is not running. Please start Docker Desktop."
-    exit 1
-fi
 
 # Check AWS credentials
 if aws sts get-caller-identity &> /dev/null; then
@@ -181,79 +173,7 @@ kubectl wait --for=condition=available --timeout=600s deployment/prometheus-graf
 check_command "Grafana deployment ready"
 
 echo
-print_step "6" "Building and Pushing Django Application"
-echo "-------------------------------------------------------"
-
-cd "$PROJECT_ROOT/django_app"
-
-# Get ECR login
-aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com
-check_command "ECR login"
-
-# Build Docker image for Linux x86_64 platform (EKS nodes)
-docker build --platform linux/amd64 -t django_app .
-check_command "Docker image build"
-
-# Tag for ECR
-docker tag django_app:latest $AWS_ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com/django_app:latest
-check_command "Docker image tagging"
-
-# Push to ECR
-docker push $AWS_ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com/django_app:latest
-check_command "Docker image push to ECR"
-
-echo
-print_step "7" "Deploying Django Application"
-echo "--------------------------------------------"
-
-cd "$PROJECT_ROOT"
-
-# Get RDS connection details from Terraform for verification
-cd "$PROJECT_ROOT/main-infra"
-RDS_ENDPOINT=$(terraform output -raw rds_endpoint 2>/dev/null || echo "")
-RDS_HOST=$(echo $RDS_ENDPOINT | cut -d':' -f1)
-cd "$PROJECT_ROOT"
-
-if [ -z "$RDS_ENDPOINT" ]; then
-    print_error "Could not get RDS endpoint from Terraform output"
-    exit 1
-fi
-
-print_success "Using RDS: $RDS_HOST"
-
-# Verify RDS is accessible
-echo "Verifying RDS database connectivity..."
-RDS_AVAILABLE=false
-for i in {1..10}; do
-    if aws rds describe-db-instances --db-instance-identifier myapp-db --query 'DBInstances[0].DBInstanceStatus' --output text 2>/dev/null | grep -q "available"; then
-        print_success "RDS database is available"
-        RDS_AVAILABLE=true
-        break
-    else
-        print_warning "RDS database not ready yet, waiting... (attempt $i/10)"
-        sleep 30
-    fi
-done
-
-if [ "$RDS_AVAILABLE" = false ]; then
-    print_warning "RDS database may not be fully ready yet, but continuing with deployment"
-fi
-
-# Deploy using Helm (values.yaml already configured for RDS)
-# Update only the image repository to match current AWS account
-helm upgrade --install django-app ./charts/django-app --namespace default --create-namespace \
-    --set image.repository=$AWS_ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com/django_app \
-    --set image.tag=latest \
-    --wait --timeout=600s
-check_command "Django application deployment"
-
-# Wait for Django pods to be ready
-echo "Waiting for Django application to be ready..."
-kubectl wait --for=condition=available --timeout=300s deployment/django-app-django -n default
-check_command "Django application ready"
-
-echo
-print_step "8" "Getting Service Information"
+print_step "6" "Getting Service Information"
 echo "------------------------------------------"
 
 echo
@@ -280,18 +200,11 @@ echo "======================"
 
 # Get LoadBalancer URLs
 JENKINS_LB=$(kubectl get service jenkins -n jenkins -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "")
-DJANGO_LB=$(kubectl get service django-app-django -n default -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "")
 
 if [ -n "$JENKINS_LB" ]; then
     echo "Jenkins:    http://$JENKINS_LB (or kubectl port-forward svc/jenkins 8080:80 -n jenkins)"
 else
     echo "Jenkins:    http://localhost:8080 (kubectl port-forward svc/jenkins 8080:80 -n jenkins)"
-fi
-
-if [ -n "$DJANGO_LB" ]; then
-    echo "Django:     http://$DJANGO_LB/admin/ (or kubectl port-forward svc/django-app-django 8000:80 -n default)"
-else
-    echo "Django:     http://localhost:8000 (kubectl port-forward svc/django-app-django 8000:80 -n default)"
 fi
 
 echo "Argo CD:    https://localhost:8081 (kubectl port-forward svc/argocd-server 8081:443 -n argocd)"
@@ -321,7 +234,7 @@ kubectl get nodes
 
 echo
 echo "Namespace Overview:"
-kubectl get pods --all-namespaces | grep -E "(jenkins|argocd|monitoring|django-app-django)"
+kubectl get pods --all-namespaces | grep -E "(jenkins|argocd|monitoring)"
 
 echo
 echo "Services with External Access:"
@@ -363,13 +276,6 @@ else
     print_warning "Argo CD not found"
 fi
 
-# Check Django
-if kubectl get deployment django-app-django -n default &> /dev/null; then
-    print_success "Django application deployed"
-else
-    print_warning "Django application not found"
-fi
-
 # Check RDS
 if aws rds describe-db-instances --db-instance-identifier myapp-db &> /dev/null; then
     print_success "RDS database exists"
@@ -386,16 +292,18 @@ echo "2. Access the services using the URLs above"
 echo "3. Configure CI/CD pipelines in Jenkins"
 echo "4. Set up GitOps workflows in Argo CD"
 echo "5. Create custom dashboards in Grafana"
-echo "6. Test Django application with RDS database"
+echo "6. Deploy your Django application using Jenkins CI/CD or Argo CD GitOps"
 echo
-echo "Django Application Details:"
-echo "- Connected to RDS PostgreSQL database"
-echo "- Auto-scaling enabled (2-6 replicas)"
-echo "- Health checks configured"
-echo "- LoadBalancer service for external access"
+echo "Infrastructure Components Deployed:"
+echo "- VPC with public/private subnets"
+echo "- EKS cluster with worker nodes"  
+echo "- RDS PostgreSQL database"
+echo "- ECR container registry"
+echo "- Jenkins for CI/CD"
+echo "- Argo CD for GitOps"
+echo "- Prometheus & Grafana for monitoring"
 echo
 echo "For troubleshooting, check logs with:"
 echo "kubectl logs -f deployment/<service-name> -n <namespace>"
-echo "kubectl logs -f deployment/django-app-django -n default  # Django logs"
 echo
 print_success "All systems operational! 🚀"
