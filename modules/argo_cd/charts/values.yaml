@@ -4,7 +4,7 @@ applications:
     source:
       repoURL: https://github.com/kazamov/goit-microservice-project.git
       path: charts/django-app
-      targetRevision: main
+      targetRevision: final-project  # Use the current branch
       helm:
         valueFiles:
           - values.yaml
@@ -17,7 +17,11 @@ applications:
         selfHeal: true
       syncOptions:
         - CreateNamespace=true
+        - ApplyOutOfSyncOnly=true
+    # Add sync waves for proper ordering
+    syncWave: 0
 
 repositories:
   - name: goit-microservice
     url: https://github.com/kazamov/goit-microservice-project.git
+    type: git

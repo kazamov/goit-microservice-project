@@ -35,6 +35,15 @@
     - pipeline-stage-view:latest
     - blueocean:latest
     - github-branch-source:latest
+    - build-timeout:latest
+    - timestamper:latest
+    - ws-cleanup:latest
+    - ant:latest
+    - gradle:latest
+    - workflow-cps:latest
+    - pipeline-github-lib:latest
+    - ssh-slaves:latest
+    - matrix-auth:latest
 
   serviceAccount:
      name: jenkins-sa
@@ -53,39 +62,3 @@
                       username: kazamov
                       password: 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
                       description: GitHub PAT
-      seed-job: |
-        jobs:
-          - script: >
-              job('seed-job') {
-                description('Job to generate pipeline for Django project')
-                scm {
-                  git {
-                    remote {
-                      url('https://github.com/kazamov/goit-microservice-project.git')
-                      credentials('github-token')
-                    }
-                    branches('*/main')
-                  }
-                }
-                steps {
-                  dsl {
-                    text('''
-                      pipelineJob("goit-django-docker") {
-                        definition {
-                          cpsScm {
-                            scm {
-                              git {
-                                remote {
-                                  url("https://github.com/kazamov/goit-microservice-project.git")
-                                  credentials("github-token")
-                                }
-                                branches("*/main")
-                              }
-                            }
-                          }
-                        }
-                      }
-                    ''')
-                  }
-                }
-              }

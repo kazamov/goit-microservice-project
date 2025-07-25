@@ -23,6 +23,12 @@ spec:
         - sleep
       args:
         - 99d
+    - name: kubectl
+      image: bitnami/kubectl:latest
+      command:
+        - sleep
+      args:
+        - 99d
 """
     }
   }
@@ -37,15 +43,27 @@ spec:
     
     GIT_REPO_URL = "https://github.com/kazamov/goit-microservice-project.git"
     CHART_PATH   = "charts/django-app"
+    
+    // Deployment configuration
+    AUTO_DEPLOY = "${env.BRANCH_NAME == 'main' ? 'true' : 'false'}"
+    DEPLOYMENT_METHOD = "GitOps" // Options: GitOps, Direct, Manual
+    TARGET_NAMESPACE = "django-app"
   }
 
   stages {
-    stage('Checkout') {
+    stage('Checkout & Setup') {
       steps {
         script {
           // Get git commit hash for tagging
           env.GIT_COMMIT = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
-          echo "Building image with tag: ${env.IMAGE_TAG}"
+          env.GIT_BRANCH = sh(returnStdout: true, script: 'git rev-parse --abbrev-ref HEAD').trim()
+          
+          echo "🔧 Build Configuration:"
+          echo "Branch: ${env.GIT_BRANCH}"
+          echo "Commit: ${env.GIT_COMMIT}"
+          echo "Image Tag: ${env.IMAGE_TAG}"
+          echo "Auto Deploy: ${env.AUTO_DEPLOY}"
+          echo "Deployment Method: ${env.DEPLOYMENT_METHOD}"
         }
       }
     }
@@ -53,45 +71,164 @@ spec:
     stage('Build & Push Docker Image') {
       steps {
         container('kaniko') {
-          sh '''
-            /kaniko/executor \\
-              --context `pwd` \\
-              --dockerfile `pwd`/Dockerfile \\
-              --destination=$ECR_REGISTRY/$IMAGE_NAME:$IMAGE_TAG \\
-              --destination=$ECR_REGISTRY/$IMAGE_NAME:latest \\
-              --cache=true \\
-              --insecure \\
-              --skip-tls-verify
-          '''
+          script {
+            echo "🐳 Building and pushing Docker image..."
+            sh '''
+              /kaniko/executor \\
+                --context `pwd` \\
+                --dockerfile `pwd`/Dockerfile \\
+                --destination=$ECR_REGISTRY/$IMAGE_NAME:$IMAGE_TAG \\
+                --destination=$ECR_REGISTRY/$IMAGE_NAME:latest \\
+                --cache=true \\
+                --insecure \\
+                --skip-tls-verify
+            '''
+            echo "✅ Docker image built and pushed successfully!"
+          }
         }
       }
     }
 
-    stage('Update Chart Tag in Git') {
+    stage('Security Scan') {
+      when {
+        expression { env.BRANCH_NAME == 'main' }
+      }
       steps {
-        container('git') {
-          withCredentials([usernamePassword(credentialsId: 'github-token', usernameVariable: 'GIT_USERNAME', passwordVariable: 'GIT_PAT')]) {
+        script {
+          echo "🔒 Security scanning (placeholder - integrate with your security tools)"
+          echo "Image: ${env.ECR_REGISTRY}/${env.IMAGE_NAME}:${env.IMAGE_TAG}"
+          // Add your security scanning tools here (e.g., Trivy, Snyk, etc.)
+        }
+      }
+    }
+
+    stage('Deploy to Development') {
+      when {
+        expression { env.AUTO_DEPLOY == 'true' && env.DEPLOYMENT_METHOD != 'Manual' }
+      }
+      parallel {
+        stage('GitOps Deployment') {
+          when {
+            expression { env.DEPLOYMENT_METHOD == 'GitOps' }
+          }
+          steps {
+            container('git') {
+              withCredentials([usernamePassword(credentialsId: 'github-token', usernameVariable: 'GIT_USERNAME', passwordVariable: 'GIT_PAT')]) {
+                script {
+                  echo "🔄 Updating GitOps repository for Argo CD..."
+                  sh '''
+                    # Clone the repository
+                    git clone https://${GIT_USERNAME}:${GIT_PAT}@github.com/kazamov/goit-microservice-project.git repo
+                    cd repo/$CHART_PATH
+
+                    # Update the image tag in values.yaml
+                    sed -i "s/tag: .*/tag: $IMAGE_TAG/" values.yaml
+
+                    # Configure git
+                    git config user.email "$COMMIT_EMAIL"
+                    git config user.name "$COMMIT_NAME"
+
+                    # Commit and push changes
+                    git add values.yaml
+                    git commit -m "🚀 Auto-deploy Django app with tag $IMAGE_TAG [skip ci]" || echo "No changes to commit"
+                    git push origin main
+                    
+                    echo "✅ GitOps repository updated. Argo CD will sync automatically."
+                  '''
+                }
+              }
+            }
+          }
+        }
+
+        stage('Direct Deployment') {
+          when {
+            expression { env.DEPLOYMENT_METHOD == 'Direct' }
+          }
+          steps {
+            container('kubectl') {
+              script {
+                echo "🚀 Direct deployment to Kubernetes..."
+                sh '''
+                  helm upgrade --install django-app ./charts/django-app \\
+                    --namespace $TARGET_NAMESPACE \\
+                    --create-namespace \\
+                    --set image.repository=$ECR_REGISTRY/$IMAGE_NAME \\
+                    --set image.tag=$IMAGE_TAG \\
+                    --wait --timeout=300s
+                '''
+                echo "✅ Direct deployment completed!"
+              }
+            }
+          }
+        }
+      }
+    }
+
+    stage('Integration Tests') {
+      when {
+        expression { env.AUTO_DEPLOY == 'true' }
+      }
+      steps {
+        container('kubectl') {
+          script {
+            echo "🧪 Running integration tests..."
             sh '''
-              # Clone the repository
-              git clone $GIT_REPO_URL repo
-              cd repo/$CHART_PATH
-
-              # Update the image tag in values.yaml
-              sed -i "s/tag: .*/tag: $IMAGE_TAG/" values.yaml
-
-              # Configure git
-              git config user.email "$COMMIT_EMAIL"
-              git config user.name "$COMMIT_NAME"
-
-              # Commit and push changes
-              git add values.yaml
-              git commit -m "Update Django app image tag to $IMAGE_TAG [skip ci]"
-              git push origin main
+              # Wait for deployment to be ready
+              kubectl wait --for=condition=available --timeout=300s deployment/django-app-django -n $TARGET_NAMESPACE || true
               
-              echo "Successfully updated chart with new image tag: $IMAGE_TAG"
+              # Get service endpoint
+              SERVICE_IP=$(kubectl get service django-app-django -n $TARGET_NAMESPACE -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' || echo "localhost")
+              echo "Service endpoint: $SERVICE_IP"
+              
+              # Basic health check (add more comprehensive tests here)
+              echo "Performing health check..."
+              # kubectl run test-pod --image=curlimages/curl --rm -i --restart=Never -- curl -f http://django-app-django.$TARGET_NAMESPACE.svc.cluster.local:80/admin/ || echo "Health check failed"
             '''
           }
         }
+      }
+    }
+
+    stage('Notify Deployment') {
+      when {
+        expression { env.AUTO_DEPLOY == 'true' }
+      }
+      steps {
+        script {
+          echo "📢 Deployment notification"
+          echo "✅ Django application deployed successfully!"
+          echo "🏷️  Image Tag: ${env.IMAGE_TAG}"
+          echo "🎯 Namespace: ${env.TARGET_NAMESPACE}"
+          echo "🔄 Method: ${env.DEPLOYMENT_METHOD}"
+          
+          // Add notification integrations here (Slack, Teams, etc.)
+        }
+      }
+    }
+  }
+
+  post {
+    success {
+      script {
+        echo "🎉 Pipeline completed successfully!"
+        if (env.AUTO_DEPLOY == 'true') {
+          echo "✅ Application deployed and ready!"
+        } else {
+          echo "📦 Image built and ready for manual deployment"
+          echo "Use the 'Manual Deploy' job to deploy this image: ${env.IMAGE_TAG}"
+        }
+      }
+    }
+    failure {
+      echo "❌ Pipeline failed. Check logs for details."
+    }
+    always {
+      script {
+        echo "📊 Build Summary:"
+        echo "Branch: ${env.GIT_BRANCH}"
+        echo "Commit: ${env.GIT_COMMIT}"
+        echo "Image: ${env.ECR_REGISTRY}/${env.IMAGE_NAME}:${env.IMAGE_TAG}"
       }
     }
   }

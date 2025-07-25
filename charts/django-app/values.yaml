@@ -1,21 +1,36 @@
 image:
-  repository: AWS_ACCOUNT_ID.dkr.ecr.AWS_REGION.amazonaws.com/django_app
+  repository: 127214174194.dkr.ecr.eu-central-1.amazonaws.com/django_app
   tag: latest
   pullPolicy: IfNotPresent
 
+# Deployment configuration
+replicaCount: 2
+
 service:
   type: LoadBalancer
-  port: 8000
+  port: 80
+  targetPort: 8000
 
 ingress:
   enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: django-app.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
 
+# Horizontal Pod Autoscaler
 autoscaler:
   enabled: true
   minReplicas: 2
   maxReplicas: 6
   targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
 
+# Resource limits and requests
 resources:
   requests:
     cpu: 100m
@@ -24,6 +39,48 @@ resources:
     cpu: 500m
     memory: 512Mi
 
+# Health checks
+livenessProbe:
+  httpGet:
+    path: /admin/
+    port: 8000
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /admin/
+    port: 8000
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+# Pod Disruption Budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# Node affinity and tolerations
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# Security context
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+# Service account
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# Environment configuration
 config:
   POSTGRES_PORT: "5432"
   POSTGRES_HOST: "myapp-db.czug8wokie9j.eu-central-1.rds.amazonaws.com"
@@ -33,6 +90,16 @@ config:
   DJANGO_DEBUG: "False"
   DJANGO_ALLOWED_HOSTS: "*"
   DJANGO_SECRET_KEY: "your-secret-key-here-change-in-production"
+
+# Secret configuration (for sensitive data)
+secrets:
+  enabled: false
+  data: {}
+
+# ConfigMap for non-sensitive configuration
+configMap:
+  enabled: true
+  data: {}
 
 # Bitnami PostgreSQL configuration (disabled - using RDS)
 postgresql:
