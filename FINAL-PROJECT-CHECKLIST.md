@@ -116,7 +116,7 @@ aws rds describe-db-instances --db-instance-identifier myapp-db --query 'DBInsta
 ```bash
 # Check Jenkins
 kubectl get all -n jenkins
-kubectl port-forward svc/jenkins 8080:8080 -n jenkins
+kubectl port-forward svc/jenkins 8080:80 -n jenkins
 
 # Check Argo CD
 kubectl get all -n argocd
