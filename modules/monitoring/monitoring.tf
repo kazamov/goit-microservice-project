@@ -124,7 +124,7 @@ metadata:
 spec:
   namespaceSelector:
     matchNames:
-    - default
+    - django-app
   selector:
     matchLabels:
       app.kubernetes.io/name: django-app-django
